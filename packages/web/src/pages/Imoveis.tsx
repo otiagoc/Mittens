@@ -458,8 +458,30 @@ function AlertEditDrawer({
     market: alert.market ?? "",
     ownerType: alert.ownerType ?? "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    const minPrice = form.minPrice ? Number(form.minPrice) : null;
+    const maxPrice = form.maxPrice ? Number(form.maxPrice) : null;
+    if (minPrice !== null && maxPrice !== null && minPrice > maxPrice) {
+      newErrors.price = "Preço mínimo não pode ser superior ao máximo";
+    }
+
+    const minArea = form.minArea ? Number(form.minArea) : null;
+    const maxArea = form.maxArea ? Number(form.maxArea) : null;
+    if (minArea !== null && maxArea !== null && minArea > maxArea) {
+      newErrors.area = "Área mínima não pode ser superior à máxima";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSave = () => {
+    if (!validateForm()) return;
+
     const updates: any = {
       zone: form.zone,
       propertyType: form.propertyType,
@@ -537,7 +559,10 @@ function AlertEditDrawer({
                 type="number"
                 value={form.minPrice}
                 onChange={(e) => setForm({ ...form, minPrice: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2",
+                  errors.price ? "border-red-300 focus:ring-red-500" : "focus:ring-blue-500"
+                )}
               />
             </div>
             <div>
@@ -546,10 +571,16 @@ function AlertEditDrawer({
                 type="number"
                 value={form.maxPrice}
                 onChange={(e) => setForm({ ...form, maxPrice: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2",
+                  errors.price ? "border-red-300 focus:ring-red-500" : "focus:ring-blue-500"
+                )}
               />
             </div>
           </div>
+          {errors.price && (
+            <div className="text-xs text-red-500 -mt-1">{errors.price}</div>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -558,7 +589,10 @@ function AlertEditDrawer({
                 type="number"
                 value={form.minArea}
                 onChange={(e) => setForm({ ...form, minArea: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2",
+                  errors.area ? "border-red-300 focus:ring-red-500" : "focus:ring-blue-500"
+                )}
               />
             </div>
             <div>
@@ -567,10 +601,16 @@ function AlertEditDrawer({
                 type="number"
                 value={form.maxArea}
                 onChange={(e) => setForm({ ...form, maxArea: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2",
+                  errors.area ? "border-red-300 focus:ring-red-500" : "focus:ring-blue-500"
+                )}
               />
             </div>
           </div>
+          {errors.area && (
+            <div className="text-xs text-red-500 -mt-1">{errors.area}</div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Ano Construção Mín</label>
@@ -618,7 +658,7 @@ function AlertEditDrawer({
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || Object.keys(errors).length > 0}
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm"
           >
             {isSaving ? "A guardar..." : "Guardar"}

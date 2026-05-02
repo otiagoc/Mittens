@@ -11,6 +11,27 @@ import type { AgentMessage } from "../agents/types.js";
 // O bot Telegram está dedicado exclusivamente ao agente D&D Group (imobiliário)
 const DND_AGENT_ID = "dnd";
 
+// Rate limiting: 10 messages per 60 seconds per chatId
+const messageTimestamps = new Map<string, number[]>();
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkRateLimit(chatId: string): boolean {
+  const now = Date.now();
+  const timestamps = messageTimestamps.get(chatId) ?? [];
+
+  // Remove timestamps older than the rate limit window
+  const recentTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW_MS);
+
+  if (recentTimestamps.length >= RATE_LIMIT_MAX) {
+    return false; // Rate limit exceeded
+  }
+
+  recentTimestamps.push(now);
+  messageTimestamps.set(chatId, recentTimestamps);
+  return true; // Rate limit OK
+}
+
 export function createBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN não definido");
@@ -60,6 +81,12 @@ export function createBot() {
     const chatId = String(ctx.chat.id);
     const userMessage = ctx.message.text;
     const from = ctx.message.from;
+
+    // Rate limiting
+    if (!checkRateLimit(chatId)) {
+      await ctx.reply("⏳ Estás a enviar mensagens muito rapidamente. Aguarda um momento e tenta novamente.");
+      return;
+    }
 
     // Typing indicator
     await ctx.replyWithChatAction("typing");

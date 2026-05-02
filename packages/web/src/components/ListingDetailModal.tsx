@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Copy,
   Check,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,13 @@ export function ListingDetailModal({
     onSuccess: (res) => {
       const fullUrl = `${window.location.origin}${res.url}`;
       setShareUrl(fullUrl);
+    },
+  });
+
+  const deleteShareMutation = useMutation({
+    mutationFn: () => propertyListingsApi.deleteShare(listingId),
+    onSuccess: () => {
+      setShareUrl(null);
     },
   });
 
@@ -281,33 +289,53 @@ export function ListingDetailModal({
                     {shareMutation.isPending ? "A gerar link..." : "Gerar link de partilha"}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-2">
-                    <input
-                      readOnly
-                      value={shareUrl}
-                      className="flex-1 bg-transparent text-sm text-gray-700 outline-none px-2"
-                      onFocus={(e) => e.currentTarget.select()}
-                    />
-                    <button
-                      onClick={copyShare}
-                      className={cn(
-                        "flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium transition-colors",
-                        copied
-                          ? "bg-green-500 text-white"
-                          : "bg-blue-500 hover:bg-blue-600 text-white"
-                      )}
-                    >
-                      {copied ? <Check size={12} /> : <Copy size={12} />}
-                      {copied ? "Copiado" : "Copiar"}
-                    </button>
-                    <a
-                      href={shareUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium bg-white border border-gray-200 text-gray-600 hover:text-blue-500 transition-colors"
-                    >
-                      Abrir <ExternalLink size={11} />
-                    </a>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-2">
+                      <input
+                        readOnly
+                        value={shareUrl}
+                        className="flex-1 bg-transparent text-sm text-gray-700 outline-none px-2"
+                        onFocus={(e) => e.currentTarget.select()}
+                      />
+                      <button
+                        onClick={copyShare}
+                        className={cn(
+                          "flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium transition-colors",
+                          copied
+                            ? "bg-green-500 text-white"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
+                        )}
+                      >
+                        {copied ? <Check size={12} /> : <Copy size={12} />}
+                        {copied ? "Copiado" : "Copiar"}
+                      </button>
+                      <a
+                        href={shareUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium bg-white border border-gray-200 text-gray-600 hover:text-blue-500 transition-colors"
+                      >
+                        Abrir <ExternalLink size={11} />
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => shareMutation.mutate()}
+                        disabled={shareMutation.isPending || deleteShareMutation.isPending}
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw size={12} className={shareMutation.isPending ? "animate-spin" : ""} />
+                        Regenerar
+                      </button>
+                      <button
+                        onClick={() => deleteShareMutation.mutate()}
+                        disabled={deleteShareMutation.isPending || shareMutation.isPending}
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={12} />
+                        Apagar
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

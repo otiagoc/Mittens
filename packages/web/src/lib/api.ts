@@ -281,6 +281,8 @@ export const propertyListingsApi = {
       `/property-listings/${id}/share`,
       { method: "POST" }
     ),
+  deleteShare: (id: string) =>
+    request<{ ok: boolean }>(`/property-listings/${id}/share`, { method: "DELETE" }),
   runAlert: (alertId: string) =>
     request<{ newCount: number }>(`/property-alerts/${alertId}/run`, { method: "POST" }),
 };

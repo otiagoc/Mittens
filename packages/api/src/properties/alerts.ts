@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { propertyAlerts, propertyListings, leads, activities } from "../db/schema.js";
 import { scrapeAll, type SearchParams } from "./scraper.js";
@@ -30,9 +30,14 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     ownerType: alert.ownerType as "agency" | "private" | null,
   });
 
-  const seenIds: string[] = JSON.parse(alert.seenIds ?? "[]");
+  // Query DB para imóveis já encontrados neste alerta
+  const existingListings = await db.select({ externalId: propertyListings.externalId, source: propertyListings.source })
+    .from(propertyListings)
+    .where(eq(propertyListings.alertId, alert.id));
+
+  const existingSet = new Set(existingListings.map(l => `${l.source}:${l.externalId}`));
   const newListings = listings.filter(
-    (l) => !seenIds.includes(`${l.source}:${l.externalId}`)
+    (l) => !existingSet.has(`${l.source}:${l.externalId}`)
   );
 
   // Guarda novos imóveis na DB
@@ -73,10 +78,13 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
 
       await sendTelegramMessage(lead.telegramChatId, msg);
 
-      // Marca como notificado
+      // Marca como notificado (com source para evitar colisões)
       await db.update(propertyListings)
         .set({ notifiedAt: new Date().toISOString() })
-        .where(eq(propertyListings.externalId, listing.externalId));
+        .where(and(
+          eq(propertyListings.externalId, listing.externalId),
+          eq(propertyListings.source, listing.source)
+        ));
 
       await new Promise((r) => setTimeout(r, 1000));
     }
@@ -99,14 +107,9 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     }
   }
 
-  // Actualiza seenIds e lastCheckedAt
-  const allSeen = [...new Set([
-    ...seenIds,
-    ...listings.map((l) => `${l.source}:${l.externalId}`),
-  ])].slice(-500);
-
+  // Actualiza lastCheckedAt
   await db.update(propertyAlerts)
-    .set({ seenIds: JSON.stringify(allSeen), lastCheckedAt: new Date().toISOString() })
+    .set({ lastCheckedAt: new Date().toISOString() })
     .where(eq(propertyAlerts.id, alertId));
 
   console.log(`[PropertyAlerts] Alerta ${alertId}: ${listings.length} total, ${newListings.length} novos`);
@@ -122,7 +125,9 @@ export async function processPropertyAlerts(): Promise<void> {
     await runAlert(alert.id, true).catch((err) =>
       console.error(`[PropertyAlerts] Erro no alerta ${alert.id}:`, err)
     );
-    await new Promise((r) => setTimeout(r, 3000));
+    // Serialized with delay to prevent scraper bans (5-7 seconds between requests)
+    const delay = 5000 + Math.random() * 2000;
+    await new Promise((r) => setTimeout(r, delay));
   }
   console.log("[PropertyAlerts] Verificação concluída.");
 }

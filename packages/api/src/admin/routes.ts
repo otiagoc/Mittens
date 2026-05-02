@@ -516,6 +516,13 @@ router.post("/leads/:id/property-alerts", authMiddleware, async (c) => {
     ownerType?: "agency" | "private" | null;
   }>();
 
+  if (body.minPrice !== undefined && body.maxPrice !== undefined && body.minPrice > body.maxPrice) {
+    return c.json({ error: "Preço mínimo não pode ser superior ao máximo" }, 400);
+  }
+  if (body.minArea !== undefined && body.maxArea !== undefined && body.minArea > body.maxArea) {
+    return c.json({ error: "Área mínima não pode ser superior à máxima" }, 400);
+  }
+
   const alertId = `alert_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   await db.insert(propertyAlerts).values({
     id: alertId,
@@ -573,6 +580,13 @@ router.patch("/property-alerts/:id", authMiddleware, async (c) => {
     ownerType: string;
     active: boolean;
   }>>();
+
+  if (body.minPrice !== undefined && body.maxPrice !== undefined && body.minPrice > body.maxPrice) {
+    return c.json({ error: "Preço mínimo não pode ser superior ao máximo" }, 400);
+  }
+  if (body.minArea !== undefined && body.maxArea !== undefined && body.minArea > body.maxArea) {
+    return c.json({ error: "Área mínima não pode ser superior à máxima" }, 400);
+  }
 
   const updates: any = {};
   if (body.zone !== undefined) updates.zone = body.zone;
@@ -680,6 +694,13 @@ router.post("/property-listings/:id/share", authMiddleware, async (c) => {
   const token = `sh_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
   await db.insert(propertyShares).values({ id: token, listingId: id });
   return c.json({ token, url: `/share/${token}`, viewCount: 0 }, 201);
+});
+
+// Apagar link de partilha
+router.delete("/property-listings/:id/share", authMiddleware, async (c) => {
+  const id = c.req.param("id") as string;
+  await db.delete(propertyShares).where(eq(propertyShares.listingId, id));
+  return c.json({ ok: true });
 });
 
 // Página pública de partilha (sem auth)
