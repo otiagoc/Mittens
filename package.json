@@ -1,0 +1,23 @@
+{
+  "name": "mittens",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"api,web\" --prefix-colors \"blue,green\" \"npm run dev -w packages/api\" \"npm run dev -w packages/web\"",
+    "dev:api": "npm run dev -w packages/api",
+    "dev:web": "npm run dev -w packages/web",
+    "build": "npm run build --workspace=packages/api",
+    "start": "npm run start --workspace=packages/api",
+    "db:push": "npm run db:push --workspace=packages/api",
+    "db:studio": "npm run db:studio --workspace=packages/api"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.1"
+  }
+}
