@@ -254,6 +254,7 @@ export interface AgentProfile {
   photoUrl?: string;
   amiLicense?: string;
   bio?: string;
+  telegramChatId?: string;
 }
 
 export const propertyListingsApi = {

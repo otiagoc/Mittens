@@ -1,8 +1,24 @@
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { propertyAlerts, propertyListings, leads, activities } from "../db/schema.js";
+import { propertyAlerts, propertyListings, leads, activities, settings } from "../db/schema.js";
 import { scrapeAll } from "./scraper.js";
 import { sendTelegramMessage } from "../telegram/sender.js";
+
+/**
+ * Lê o `telegramChatId` do perfil do consultor em `settings.agent_profile`.
+ * É para aqui que vão os alertas de imóveis (não para o chat da lead).
+ */
+async function getConsultantChatId(): Promise<string | null> {
+  const rows = await db.select().from(settings).where(eq(settings.key, "agent_profile")).limit(1);
+  if (rows.length === 0 || !rows[0].value) return null;
+  try {
+    const profile = JSON.parse(rows[0].value) as { telegramChatId?: string };
+    const id = profile.telegramChatId?.trim();
+    return id && id.length > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Estratégia de notificação:
@@ -66,9 +82,11 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
   }
 
   // 3) Notificações: tudo o que está em DB para este alerta sem `notifiedAt`
+  // Vão para o chat do CONSULTOR (perfil em settings), não para o chat da lead.
   let notifiedCount = 0;
+  const consultantChatId = notifyTelegram ? await getConsultantChatId() : null;
 
-  if (notifyTelegram && lead?.telegramChatId) {
+  if (notifyTelegram && consultantChatId) {
     const pending = await db.select().from(propertyListings)
       .where(and(
         eq(propertyListings.alertId, alert.id),
@@ -83,6 +101,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
         ? `${listing.price.toLocaleString("pt-PT")} €${alert.transactionType === "rent" ? "/mês" : ""}`
         : "Preço não disponível";
 
+      const leadLabel = lead?.name ? `Lead: ${lead.name} · ` : "";
       const msg = [
         `🏠 *Novo imóvel encontrado!*`,
         ``,
@@ -91,7 +110,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
         listing.area ? `📐 ${listing.area} m²` : "",
         `🔗 ${listing.url}`,
         ``,
-        `_Alerta: ${alert.propertyType} em ${alert.zone}${alert.maxPrice ? ` até ${alert.maxPrice.toLocaleString("pt-PT")} €` : ""}_`,
+        `_${leadLabel}${alert.propertyType} em ${alert.zone}${alert.maxPrice ? ` até ${alert.maxPrice.toLocaleString("pt-PT")} €` : ""}_`,
       ].filter(Boolean).join("\n");
 
       // Marca antes de enviar (evita reenvio em caso de crash)
@@ -99,7 +118,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
         .set({ notifiedAt: new Date().toISOString() })
         .where(eq(propertyListings.id, listing.id));
 
-      await sendTelegramMessage(lead.telegramChatId, msg);
+      await sendTelegramMessage(consultantChatId, msg);
       notifiedCount++;
 
       await new Promise((r) => setTimeout(r, 1000));
@@ -108,7 +127,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     // Se há mais que 3 pendentes, manda resumo e marca os restantes como notificados
     if (pending.length > 3) {
       await sendTelegramMessage(
-        lead.telegramChatId,
+        consultantChatId,
         `_...e mais ${pending.length - 3} imóvel(is). Abre o CRM para ver todos._`
       );
 

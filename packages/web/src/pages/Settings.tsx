@@ -53,6 +53,22 @@ export function Settings() {
         <Field label="URL da foto" value={form.photoUrl ?? ""} onChange={(v) => setField("photoUrl", v)} placeholder="https://..." />
 
         <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+            ID Telegram (recebe os alertas de imóveis)
+          </label>
+          <input
+            type="text"
+            value={form.telegramChatId ?? ""}
+            onChange={(e) => setField("telegramChatId", e.target.value)}
+            placeholder="ex: 8060090589"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Para descobrires o teu ID, envia <code className="bg-gray-100 px-1 rounded">/meu_id</code> ao bot <a href="https://t.me/m1ttens_bot" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">@m1ttens_bot</a> e cola o número aqui.
+          </p>
+        </div>
+
+        <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Apresentação curta</label>
           <textarea
             value={form.bio ?? ""}

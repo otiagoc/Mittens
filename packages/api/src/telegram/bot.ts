@@ -74,6 +74,15 @@ export function createBot() {
     );
   });
 
+  // ─── /meu_id ───────────────────────────────────────────────────────────────
+  bot.command("meu_id", async (ctx) => {
+    await ctx.reply(
+      `*O teu ID Telegram é:* \`${ctx.chat.id}\`\n\n` +
+      `_Cola este número em Definições → ID Telegram, no CRM Mittens, para receberes os alertas de imóveis._`,
+      { parse_mode: "Markdown" }
+    );
+  });
+
   // ─── /reset ────────────────────────────────────────────────────────────────
   bot.command("reset", async (ctx) => {
     const chatId = String(ctx.chat.id);

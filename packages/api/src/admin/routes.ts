@@ -781,7 +781,7 @@ router.patch("/settings/profile", authMiddleware, async (c) => {
 // Forçar re-scrape de um alerta
 router.post("/property-alerts/:id/run", authMiddleware, async (c) => {
   const id = c.req.param("id") as string;
-  const newCount = await runAlert(id, false);
+  const newCount = await runAlert(id, true);
   return c.json({ newCount });
 });
 
