@@ -300,6 +300,8 @@ export async function processFollowUps(): Promise<void> {
 /**
  * Backfill: corre no arranque e analisa conversas existentes sem follow-up agendado.
  * Deteta menções de follow-up em mensagens passadas do agente.
+ *
+ * Limita a 20 leads e adiciona 500ms delay entre detecções para evitar rate limiting da API Claude durante boot.
  */
 export async function backfillFollowUpDetection(): Promise<void> {
   const allLeads = await db.select().from(leads);
@@ -310,9 +312,19 @@ export async function backfillFollowUpDetection(): Promise<void> {
   );
 
   if (pending.length === 0) return;
-  console.log(`[FollowUp Backfill] A verificar ${pending.length} lead(s) sem follow-up...`);
 
-  for (const lead of pending) {
+  // Ordena por createdAt DESC (mais recentes primeiro) e limita a 20
+  const toProcess = pending
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20);
+
+  const skipped = pending.length - toProcess.length;
+  console.log(`[FollowUp Backfill] A verificar ${toProcess.length} lead(s) sem follow-up...`);
+  if (skipped > 0) {
+    console.log(`[FollowUp Backfill] Skipping ${skipped} leads, will retry next boot.`);
+  }
+
+  for (const lead of toProcess) {
     try {
       const textSources: string[] = [];
 
@@ -337,6 +349,9 @@ export async function backfillFollowUpDetection(): Promise<void> {
 
       const combined = textSources.join("\n\n");
       await detectAndScheduleFollowUp(lead.id, combined);
+
+      // 500ms sequential delay to prevent API rate limiting
+      await new Promise((r) => setTimeout(r, 500));
     } catch (err) {
       console.error(`[FollowUp Backfill] Erro lead=${lead.id}:`, err);
     }

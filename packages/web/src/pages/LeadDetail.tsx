@@ -5,7 +5,7 @@ import { leadsApi, type Lead } from "@/lib/api";
 import { LeadStatusBadge, ALL_STATUSES } from "@/components/LeadStatusBadge";
 import { formatDistanceToNow, format } from "date-fns";
 import { pt } from "date-fns/locale";
-import { ArrowLeft, Phone, Mail, Send, Activity, MessageSquare } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Send, Activity, MessageSquare, Calendar, FileText, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function LeadDetail() {
@@ -96,6 +96,51 @@ export function LeadDetail() {
               </select>
             </div>
           </div>
+
+          {lead.followUpAt && (
+            <div className="bg-white rounded-xl border p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar size={14} className="text-slate-400" />
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Próximo Follow-up</h2>
+              </div>
+              <p className="text-sm text-slate-700">
+                {format(new Date(lead.followUpAt), "d 'de' MMMM 'às' HH:mm", { locale: pt })}
+              </p>
+              {lead.followUpNote && (
+                <p className="text-xs text-slate-500 mt-2 italic">"{lead.followUpNote}"</p>
+              )}
+            </div>
+          )}
+
+          {lead.conversationSummary && (
+            <div className="bg-white rounded-xl border p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText size={14} className="text-slate-400" />
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Resumo da Conversa</h2>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed">{lead.conversationSummary}</p>
+            </div>
+          )}
+
+          {lead.propertyAlerts && lead.propertyAlerts.length > 0 && (
+            <div className="bg-white rounded-xl border p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Home size={14} className="text-slate-400" />
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Alertas de Imóveis</h2>
+              </div>
+              <div className="space-y-2">
+                {lead.propertyAlerts.map((alert) => (
+                  <div key={alert.id} className="text-sm border-l-2 border-blue-300 pl-3 py-1">
+                    <p className="font-medium text-slate-700">{alert.zone}</p>
+                    <p className="text-xs text-slate-500">
+                      {alert.propertyType} • {alert.transactionType === "buy" ? "Compra" : "Arrendamento"}
+                      {alert.maxPrice && ` • até ${alert.maxPrice.toLocaleString("pt-PT")} €`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {lead.notes && (
             <div className="bg-white rounded-xl border p-4">

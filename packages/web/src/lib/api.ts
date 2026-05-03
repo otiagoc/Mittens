@@ -106,7 +106,7 @@ export const leadsApi = {
     return request<{ data: Lead[]; total: number; page: number }>(`/leads?${qs}`);
   },
   get: (id: string) =>
-    request<Lead & { activities: Activity[]; conversations: Conversation[] }>(`/leads/${id}`),
+    request<Lead & { activities: Activity[]; conversations: Conversation[]; propertyAlerts: PropertyAlert[] }>(`/leads/${id}`),
   create: (data: { name: string; phone?: string; email?: string; notes?: string; source?: string }) =>
     request<Lead>("/leads", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Lead>) =>

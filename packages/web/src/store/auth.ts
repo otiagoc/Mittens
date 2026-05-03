@@ -1,10 +1,11 @@
 import { create } from "zustand";
+import type { QueryClient } from "@tanstack/react-query";
 
 interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   login: (token: string) => void;
-  logout: () => void;
+  logout: (queryClient?: QueryClient) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -14,8 +15,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem("mittens_token", token);
     set({ token, isAuthenticated: true });
   },
-  logout: () => {
+  logout: (queryClient) => {
     localStorage.removeItem("mittens_token");
     set({ token: null, isAuthenticated: false });
+    if (queryClient) {
+      queryClient.clear();
+    }
   },
 }));

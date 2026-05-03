@@ -16,6 +16,18 @@ const messageTimestamps = new Map<string, number[]>();
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
+// Per-chat message processing queue to prevent race conditions
+const chatProcessingQueues = new Map<string, Promise<void>>();
+
+async function enqueueMessage(chatId: string, handler: () => Promise<void>): Promise<void> {
+  const currentQueue = chatProcessingQueues.get(chatId) ?? Promise.resolve();
+  const nextQueue = currentQueue.then(handler).catch((err) => {
+    console.error(`[Bot] Erro na fila de processamento para chat ${chatId}:`, err);
+  });
+  chatProcessingQueues.set(chatId, nextQueue);
+  await nextQueue;
+}
+
 function checkRateLimit(chatId: string): boolean {
   const now = Date.now();
   const timestamps = messageTimestamps.get(chatId) ?? [];
@@ -88,86 +100,89 @@ export function createBot() {
       return;
     }
 
-    // Typing indicator
-    await ctx.replyWithChatAction("typing");
+    // Enqueue message to prevent race conditions from concurrent messages in the same chat
+    await enqueueMessage(chatId, async () => {
+      // Typing indicator
+      await ctx.replyWithChatAction("typing");
 
-    try {
-      // Obtém/cria lead e conversa
-      const { conv, lead } = await getOrCreateConversationWithLead(chatId, from);
-      const history = await getConversationHistory(conv.id);
+      try {
+        // Obtém/cria lead e conversa
+        const { conv, lead } = await getOrCreateConversationWithLead(chatId, from);
+        const history = await getConversationHistory(conv.id);
 
-      // Obtém o adaptador D&D
-      const adapter = await registry.getById(DND_AGENT_ID);
-      if (!adapter) {
-        await ctx.reply("⚠️ Serviço temporariamente indisponível. Tenta novamente mais tarde.");
-        return;
-      }
-
-      // Indicador "a pensar..."
-      const thinkingMsg = await ctx.reply(`🏠 _A verificar as melhores opções para si..._`, {
-        parse_mode: "Markdown",
-      });
-
-      // Guarda mensagem do utilizador
-      await saveMessage(conv.id, null, "user", userMessage);
-
-      // Log de actividade
-      await logActivity(lead.id, "message_received", `Mensagem recebida: "${userMessage.slice(0, 100)}"`);
-
-      // Chama o agente
-      const response = await adapter.sendMessage(userMessage, history, conv.id);
-
-      // Guarda resposta
-      await saveMessage(conv.id, DND_AGENT_ID, "assistant", response.text);
-
-      // Actualiza timestamp da conversa
-      await db.update(conversations)
-        .set({ updatedAt: new Date().toISOString() })
-        .where(eq(conversations.id, conv.id));
-
-      // Log de actividade
-      await logActivity(lead.id, "message_sent", `Resposta enviada pelo agente D&D`);
-
-      // Classificação automática de fase + resumo (não bloqueiam a resposta)
-      const fullHistory = await getConversationHistory(conv.id);
-
-      classifyLeadStage(lead.id, fullHistory).then((classification) => {
-        if (classification?.changed) {
-          sseBroadcast({ type: "lead_updated", leadId: lead.id, leadName: lead.name, newStage: classification.stage });
+        // Obtém o adaptador D&D
+        const adapter = await registry.getById(DND_AGENT_ID);
+        if (!adapter) {
+          await ctx.reply("⚠️ Serviço temporariamente indisponível. Tenta novamente mais tarde.");
+          return;
         }
-      }).catch(() => {});
 
-      // Gera resumo a cada 5 mensagens do utilizador
-      const userMsgCount = fullHistory.filter((m) => m.role === "user").length;
-      if (userMsgCount > 0 && userMsgCount % 5 === 0) {
-        summarizeConversation(lead.id, fullHistory).catch(() => {});
+        // Indicador "a pensar..."
+        const thinkingMsg = await ctx.reply(`🏠 _A verificar as melhores opções para si..._`, {
+          parse_mode: "Markdown",
+        });
+
+        // Guarda mensagem do utilizador
+        await saveMessage(conv.id, null, "user", userMessage);
+
+        // Log de actividade
+        await logActivity(lead.id, "message_received", `Mensagem recebida: "${userMessage.slice(0, 100)}"`);
+
+        // Chama o agente
+        const response = await adapter.sendMessage(userMessage, history, conv.id);
+
+        // Guarda resposta
+        await saveMessage(conv.id, DND_AGENT_ID, "assistant", response.text);
+
+        // Actualiza timestamp da conversa
+        await db.update(conversations)
+          .set({ updatedAt: new Date().toISOString() })
+          .where(eq(conversations.id, conv.id));
+
+        // Log de actividade
+        await logActivity(lead.id, "message_sent", `Resposta enviada pelo agente D&D`);
+
+        // Classificação automática de fase + resumo (não bloqueiam a resposta)
+        const fullHistory = await getConversationHistory(conv.id);
+
+        classifyLeadStage(lead.id, fullHistory).then((classification) => {
+          if (classification?.changed) {
+            sseBroadcast({ type: "lead_updated", leadId: lead.id, leadName: lead.name, newStage: classification.stage });
+          }
+        }).catch(() => {});
+
+        // Gera resumo a cada 5 mensagens do utilizador
+        const userMsgCount = fullHistory.filter((m) => m.role === "user").length;
+        if (userMsgCount > 0 && userMsgCount % 5 === 0) {
+          summarizeConversation(lead.id, fullHistory).catch(() => {});
+        }
+
+        // Deteta e agenda follow-up automaticamente se o agente mencionou um
+        detectAndScheduleFollowUp(lead.id, response.text).catch(() => {});
+
+        // Remove "a pensar..."
+        await ctx.api.deleteMessage(ctx.chat.id, thinkingMsg.message_id).catch(() => {});
+
+        // Envia resposta
+        const chunks = splitMessage(response.text);
+        for (const chunk of chunks) {
+          await ctx.reply(chunk, { parse_mode: "Markdown" }).catch(() => ctx.reply(chunk));
+        }
+
+        // Notifica o dashboard via SSE
+        sseBroadcast({
+          type: "new_message",
+          conversationId: conv.id,
+          leadId: lead.id,
+          leadName: lead.name,
+          preview: userMessage.slice(0, 80),
+        });
+
+      } catch (err) {
+        console.error("[Bot] Erro ao processar mensagem:", err);
+        await ctx.reply("😕 Ocorreu um erro. Por favor tenta novamente.");
       }
-
-      // Deteta e agenda follow-up automaticamente se o agente mencionou um
-      detectAndScheduleFollowUp(lead.id, response.text).catch(() => {});
-
-      // Remove "a pensar..."
-      await ctx.api.deleteMessage(ctx.chat.id, thinkingMsg.message_id).catch(() => {});
-
-      // Envia resposta
-      const chunks = splitMessage(response.text);
-      for (const chunk of chunks) {
-        await ctx.reply(chunk, { parse_mode: "Markdown" }).catch(() => ctx.reply(chunk));
-      }
-
-      // Notifica o dashboard via SSE
-      sseBroadcast({
-        type: "new_message",
-        conversationId: conv.id,
-        leadId: lead.id,
-        leadName: lead.name,
-        preview: userMessage.slice(0, 80),
-      });
-
-    } catch (err) {
-      console.error("[Bot] Erro ao processar mensagem:", err);
-      await ctx.reply("😕 Ocorreu um erro. Por favor tenta novamente.");
-    }
+    });
   });
 
   return bot;

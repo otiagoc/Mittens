@@ -138,25 +138,29 @@ export function Imoveis() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <FilterPill active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
-            Todos
-          </FilterPill>
-          <FilterPill active={filter === "new"} onClick={() => setFilter("new")} count={counts.new}>
-            Novos
-          </FilterPill>
-          <FilterPill active={filter === "favorites"} onClick={() => setFilter("favorites")} count={counts.favorites}>
-            Favoritos
-          </FilterPill>
-          <FilterPill active={filter === "hidden"} onClick={() => setFilter("hidden")} count={counts.hidden}>
-            Escondidos
-          </FilterPill>
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border bg-white text-gray-600 border-gray-200 hover:bg-gray-50 transition-colors"
-          >
-            <RefreshCw size={13} />
-            Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            <FilterPill active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
+              Todos
+            </FilterPill>
+            <FilterPill active={filter === "new"} onClick={() => setFilter("new")} count={counts.new}>
+              Novos
+            </FilterPill>
+            <FilterPill active={filter === "favorites"} onClick={() => setFilter("favorites")} count={counts.favorites}>
+              Favoritos
+            </FilterPill>
+          </div>
+          <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+            <FilterPill active={filter === "hidden"} onClick={() => setFilter("hidden")} count={counts.hidden} variant="hidden">
+              Escondidos
+            </FilterPill>
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border bg-white text-gray-600 border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCw size={13} />
+              Atualizar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -674,18 +678,26 @@ function FilterPill({
   onClick,
   count,
   children,
+  variant = "default",
 }: {
   active: boolean;
   onClick: () => void;
   count: number;
   children: React.ReactNode;
+  variant?: "default" | "hidden";
 }) {
+  const isHiddenVariant = variant === "hidden";
+
   return (
     <button
       onClick={onClick}
       className={cn(
         "flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border transition-colors",
-        active
+        isHiddenVariant
+          ? active
+            ? "bg-gray-600 text-white border-gray-600"
+            : "bg-white text-gray-500 border-gray-300 hover:bg-gray-100"
+          : active
           ? "bg-blue-500 text-white border-blue-500"
           : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
       )}
@@ -693,7 +705,13 @@ function FilterPill({
       {children}
       <span className={cn(
         "text-[10px] px-1.5 py-0 rounded-full font-bold",
-        active ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"
+        isHiddenVariant
+          ? active
+            ? "bg-gray-700 text-white"
+            : "bg-gray-200 text-gray-600"
+          : active
+          ? "bg-blue-600 text-white"
+          : "bg-gray-100 text-gray-500"
       )}>
         {count}
       </span>

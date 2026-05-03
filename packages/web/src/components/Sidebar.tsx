@@ -4,6 +4,7 @@ import {
   KanbanSquare, LogOut, ChevronLeft, ChevronRight, Home, Settings as SettingsIcon
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const logout = useAuthStore((s) => s.logout);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   return (
@@ -80,7 +82,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-2 border-t border-white/10 space-y-0.5">
         <button
-          onClick={() => { logout(); navigate("/login"); }}
+          onClick={() => { logout(queryClient); navigate("/login"); }}
           title={collapsed ? "Sair" : undefined}
           className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all duration-150"
         >

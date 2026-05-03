@@ -206,7 +206,10 @@ router.get("/leads/:id", authMiddleware, async (c) => {
   const leadConversations = await db.select().from(conversations)
     .where(eq(conversations.leadId, id)).orderBy(desc(conversations.updatedAt));
 
-  return c.json({ ...lead, activities: leadActivities, conversations: leadConversations });
+  const leadPropertyAlerts = await db.select().from(propertyAlerts)
+    .where(eq(propertyAlerts.leadId, id)).orderBy(desc(propertyAlerts.createdAt));
+
+  return c.json({ ...lead, activities: leadActivities, conversations: leadConversations, propertyAlerts: leadPropertyAlerts });
 });
 
 router.patch("/leads/:id", authMiddleware, async (c) => {
@@ -691,7 +694,8 @@ router.post("/property-listings/:id/share", authMiddleware, async (c) => {
     return c.json({ token: existing[0].id, url: `/share/${existing[0].id}`, viewCount: existing[0].viewCount });
   }
 
-  const token = `sh_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  const { generateSecureToken } = await import("../utils/token.js");
+  const token = generateSecureToken("sh");
   await db.insert(propertyShares).values({ id: token, listingId: id });
   return c.json({ token, url: `/share/${token}`, viewCount: 0 }, 201);
 });
@@ -718,11 +722,19 @@ router.get("/public/share/:token", async (c) => {
     try { detail = JSON.parse(listing.details); } catch { /* ignore */ }
   }
   if (!detail) {
-    detail = await scrapeListingDetail(listing.source, listing.externalId, listing.url);
-    if (detail) {
-      await db.update(propertyListings)
-        .set({ details: JSON.stringify(detail), detailsScrapedAt: new Date().toISOString() })
-        .where(eq(propertyListings.id, listing.id));
+    try {
+      const { withTimeout } = await import("../utils/token.js");
+      detail = await withTimeout(
+        scrapeListingDetail(listing.source, listing.externalId, listing.url),
+        10_000
+      );
+      if (detail) {
+        await db.update(propertyListings)
+          .set({ details: JSON.stringify(detail), detailsScrapedAt: new Date().toISOString() })
+          .where(eq(propertyListings.id, listing.id));
+      }
+    } catch (err) {
+      console.error(`[Share] Timeout ou erro ao scrape ${listing.source}/${listing.externalId}:`, err);
     }
   }
 

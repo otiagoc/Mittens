@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leadsApi, type Lead } from "@/lib/api";
 import { LeadStatusBadge, ALL_STATUSES } from "@/components/LeadStatusBadge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
 import { Plus, Search, Phone, Mail, Send, Trash2 } from "lucide-react";
@@ -162,32 +163,24 @@ function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
         {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true, locale: pt })}
       </td>
       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-        {confirming ? (
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-xs text-slate-500">Tens a certeza?</span>
-            <button
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-              className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded transition-colors disabled:opacity-50"
-            >
-              {deleteMutation.isPending ? "..." : "Eliminar"}
-            </button>
-            <button
-              onClick={() => setConfirming(false)}
-              className="text-xs text-slate-500 hover:text-slate-700"
-            >
-              Cancelar
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirming(true)}
-            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-            title="Eliminar lead"
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+        <button
+          onClick={() => setConfirming(true)}
+          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+          title="Eliminar lead"
+        >
+          <Trash2 size={14} />
+        </button>
+        <ConfirmDialog
+          open={confirming}
+          title="Eliminar Lead"
+          message={`Tens a certeza que queres eliminar "${lead.name}"? Esta ação não pode ser desfeita.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          variant="danger"
+          isLoading={deleteMutation.isPending}
+          onConfirm={() => deleteMutation.mutate()}
+          onCancel={() => setConfirming(false)}
+        />
       </td>
     </tr>
   );

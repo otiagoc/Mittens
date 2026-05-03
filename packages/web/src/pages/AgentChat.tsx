@@ -27,6 +27,26 @@ export function AgentChat() {
   });
 
   useEffect(() => {
+    if (!id) return;
+    const storageKey = `agentChat_${id}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
+      } catch (err) {
+        console.error("Failed to parse saved messages", err);
+      }
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || messages.length === 0) return;
+    const storageKey = `agentChat_${id}`;
+    localStorage.setItem(storageKey, JSON.stringify(messages));
+  }, [messages, id]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -85,7 +105,7 @@ export function AgentChat() {
         <div className="text-2xl">{agent.emoji}</div>
         <div className="flex-1">
           <div className="font-semibold text-sm text-slate-900">{agent.name}</div>
-          <div className="text-xs text-slate-500">Chat direto · Sessão local (não guardada)</div>
+          <div className="text-xs text-slate-500">Chat direto · Sessão local guardada</div>
         </div>
         {messages.length > 0 && (
           <button
@@ -159,7 +179,7 @@ export function AgentChat() {
           </button>
         </div>
         <p className="text-xs text-slate-400 mt-1.5 text-center">
-          Esta conversa não é guardada na base de dados
+          Conversa guardada localmente no browser
         </p>
       </div>
     </div>
