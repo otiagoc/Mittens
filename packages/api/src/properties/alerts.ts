@@ -1,12 +1,17 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { propertyAlerts, propertyListings, leads, activities } from "../db/schema.js";
-import { scrapeAll, type SearchParams } from "./scraper.js";
+import { scrapeAll } from "./scraper.js";
 import { sendTelegramMessage } from "../telegram/sender.js";
 
 /**
- * Corre o scrape para um alerta, guarda novos imóveis na DB e envia notificações.
- * Pode ser chamado manualmente (ao criar alerta) ou pelo cron.
+ * Estratégia de notificação:
+ *  - Inserir em DB todos os listings que ainda não estão (por source+externalId+alertId).
+ *  - "A notificar" = listings em DB para este alerta com `notifiedAt IS NULL`.
+ *  - Quando `notifyTelegram=false` (scrape inicial ao criar o alerta), marcar imediatamente
+ *    `notifiedAt = now()` — entram como histórico e nunca disparam Telegram.
+ *  - Em caso de crash a meio do envio, `notifiedAt` é gravado *antes* do envio para evitar
+ *    reenvios; perde-se no máximo a última mensagem se Telegram cair.
  */
 export async function runAlert(alertId: string, notifyTelegram = true): Promise<number> {
   const [alert] = await db.select().from(propertyAlerts)
@@ -30,18 +35,19 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     ownerType: alert.ownerType as "agency" | "private" | null,
   });
 
-  // Query DB para imóveis já encontrados neste alerta
-  const existingListings = await db.select({ externalId: propertyListings.externalId, source: propertyListings.source })
-    .from(propertyListings)
-    .where(eq(propertyListings.alertId, alert.id));
+  // 1) Listings já em DB para este alerta
+  const existing = await db.select({
+    externalId: propertyListings.externalId,
+    source: propertyListings.source,
+  }).from(propertyListings).where(eq(propertyListings.alertId, alert.id));
 
-  const existingSet = new Set(existingListings.map(l => `${l.source}:${l.externalId}`));
-  const newListings = listings.filter(
-    (l) => !existingSet.has(`${l.source}:${l.externalId}`)
-  );
+  const existingKey = new Set(existing.map((l) => `${l.source}:${l.externalId}`));
+  const toInsert = listings.filter((l) => !existingKey.has(`${l.source}:${l.externalId}`));
 
-  // Guarda novos imóveis na DB
-  for (const listing of newListings) {
+  // 2) Inserir novos. Se for scrape silencioso (criação de alerta), marca como histórico.
+  const seedNotifiedAt = notifyTelegram ? null : new Date().toISOString();
+
+  for (const listing of toInsert) {
     const id = `pl_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     await db.insert(propertyListings).values({
       id,
@@ -55,12 +61,24 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
       zone: listing.zone,
       url: listing.url,
       isNew: true,
+      notifiedAt: seedNotifiedAt,
     }).onConflictDoNothing();
   }
 
-  // Envia notificação Telegram se solicitado e há lead com chatId
-  if (notifyTelegram && newListings.length > 0 && lead?.telegramChatId) {
-    for (const listing of newListings.slice(0, 3)) {
+  // 3) Notificações: tudo o que está em DB para este alerta sem `notifiedAt`
+  let notifiedCount = 0;
+
+  if (notifyTelegram && lead?.telegramChatId) {
+    const pending = await db.select().from(propertyListings)
+      .where(and(
+        eq(propertyListings.alertId, alert.id),
+        isNull(propertyListings.notifiedAt),
+      ))
+      .orderBy(desc(propertyListings.foundAt));
+
+    const toSend = pending.slice(0, 3);
+
+    for (const listing of toSend) {
       const priceText = listing.price
         ? `${listing.price.toLocaleString("pt-PT")} €${alert.transactionType === "rent" ? "/mês" : ""}`
         : "Preço não disponível";
@@ -68,7 +86,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
       const msg = [
         `🏠 *Novo imóvel encontrado!*`,
         ``,
-        `📍 *${listing.title}*`,
+        `📍 *${listing.title ?? "Sem título"}*`,
         `💰 ${priceText}`,
         listing.area ? `📐 ${listing.area} m²` : "",
         `🔗 ${listing.url}`,
@@ -76,33 +94,41 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
         `_Alerta: ${alert.propertyType} em ${alert.zone}${alert.maxPrice ? ` até ${alert.maxPrice.toLocaleString("pt-PT")} €` : ""}_`,
       ].filter(Boolean).join("\n");
 
-      await sendTelegramMessage(lead.telegramChatId, msg);
-
-      // Marca como notificado (com source para evitar colisões)
+      // Marca antes de enviar (evita reenvio em caso de crash)
       await db.update(propertyListings)
         .set({ notifiedAt: new Date().toISOString() })
-        .where(and(
-          eq(propertyListings.externalId, listing.externalId),
-          eq(propertyListings.source, listing.source)
-        ));
+        .where(eq(propertyListings.id, listing.id));
+
+      await sendTelegramMessage(lead.telegramChatId, msg);
+      notifiedCount++;
 
       await new Promise((r) => setTimeout(r, 1000));
     }
 
-    if (newListings.length > 3) {
+    // Se há mais que 3 pendentes, manda resumo e marca os restantes como notificados
+    if (pending.length > 3) {
       await sendTelegramMessage(
         lead.telegramChatId,
-        `_...e mais ${newListings.length - 3} imóvel(is). Abre o CRM para ver todos._`
+        `_...e mais ${pending.length - 3} imóvel(is). Abre o CRM para ver todos._`
       );
+
+      const restIds = pending.slice(3).map((p) => p.id);
+      if (restIds.length > 0) {
+        await db.update(propertyListings)
+          .set({ notifiedAt: new Date().toISOString() })
+          .where(and(
+            eq(propertyListings.alertId, alert.id),
+            isNull(propertyListings.notifiedAt),
+          ));
+      }
     }
 
-    // Log de actividade
-    if (alert.leadId) {
+    if (alert.leadId && notifiedCount > 0) {
       await db.insert(activities).values({
         id: `act_prop_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         leadId: alert.leadId,
         type: "property_alert",
-        description: `🏠 ${newListings.length} novo(s) imóvel(is) encontrado(s) em ${alert.zone}`,
+        description: `🏠 ${pending.length} novo(s) imóvel(is) encontrado(s) em ${alert.zone}`,
       });
     }
   }
@@ -112,8 +138,10 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     .set({ lastCheckedAt: new Date().toISOString() })
     .where(eq(propertyAlerts.id, alertId));
 
-  console.log(`[PropertyAlerts] Alerta ${alertId}: ${listings.length} total, ${newListings.length} novos`);
-  return newListings.length;
+  console.log(
+    `[PropertyAlerts] Alerta ${alertId}: ${listings.length} dos portais, ${toInsert.length} novos em DB, ${notifiedCount} notificados`
+  );
+  return toInsert.length;
 }
 
 /** Cron: processa todos os alertas activos */
