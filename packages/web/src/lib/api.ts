@@ -257,6 +257,24 @@ export interface AgentProfile {
   telegramChatId?: string;
 }
 
+export interface DedupPair {
+  keptId: string;
+  deletedId: string;
+  reason: string;
+  keptUrl: string;
+  deletedUrl: string;
+  title: string | null;
+  price: number | null;
+  area: number | null;
+}
+
+export interface DedupResponse {
+  removed: number;
+  dryRun: boolean;
+  byPass: { pass: string; removed: number }[];
+  pairs: DedupPair[];
+}
+
 export const propertyListingsApi = {
   list: (params?: { alertId?: string; leadId?: string }) => {
     const qs = new URLSearchParams();
@@ -286,13 +304,13 @@ export const propertyListingsApi = {
     request<{ ok: boolean }>(`/property-listings/${id}/share`, { method: "DELETE" }),
   runAlert: (alertId: string) =>
     request<{ newCount: number }>(`/property-alerts/${alertId}/run`, { method: "POST" }),
-  dedupAlert: (alertId: string) =>
-    request<{ removed: number; byPass: { pass: string; removed: number }[]; pairs: { keptId: string; deletedId: string; reason: string }[] }>(
-      `/property-alerts/${alertId}/dedup`, { method: "POST" }
+  dedupAlert: (alertId: string, dryRun = false) =>
+    request<DedupResponse>(
+      `/property-alerts/${alertId}/dedup${dryRun ? "?dryRun=1" : ""}`, { method: "POST" }
     ),
-  dedupAll: () =>
-    request<{ removed: number; byPass: { pass: string; removed: number }[]; pairs: { keptId: string; deletedId: string; reason: string }[] }>(
-      `/property-listings/dedup`, { method: "POST" }
+  dedupAll: (dryRun = false) =>
+    request<DedupResponse>(
+      `/property-listings/dedup${dryRun ? "?dryRun=1" : ""}`, { method: "POST" }
     ),
 };
 

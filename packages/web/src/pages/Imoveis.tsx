@@ -4,6 +4,7 @@ import {
   propertyAlertsApi,
   type PropertyListing,
   type PropertyAlert,
+  type DedupResponse,
 } from "@/lib/api";
 import {
   ExternalLink,
@@ -39,6 +40,7 @@ export function Imoveis() {
   const [openListingId, setOpenListingId] = useState<string | null>(null);
   const [editingAlert, setEditingAlert] = useState<PropertyAlert | null>(null);
   const [viewMode, setViewMode] = useState<"icon" | "list">("icon");
+  const [dedupPreview, setDedupPreview] = useState<DedupResponse | null>(null);
 
   const { data: listings = [], isLoading, refetch } = useQuery({
     queryKey: ["property-listings"],
@@ -78,22 +80,26 @@ export function Imoveis() {
     onSuccess: invalidate,
   });
 
-  const dedupMutation = useMutation({
-    mutationFn: () => propertyListingsApi.dedupAll(),
+  // Preview: corre o dedup em modo dry-run e abre modal de confirmação
+  const dedupPreviewMutation = useMutation({
+    mutationFn: () => propertyListingsApi.dedupAll(true),
+    onSuccess: (data) => {
+      if (data.removed === 0) {
+        alert("Nenhum duplicado encontrado.");
+      } else {
+        setDedupPreview(data);
+      }
+    },
+    onError: (err: Error) => alert(`Erro a verificar duplicados: ${err.message}`),
+  });
+
+  // Confirm: corre o dedup a sério e apaga
+  const dedupConfirmMutation = useMutation({
+    mutationFn: () => propertyListingsApi.dedupAll(false),
     onSuccess: (data) => {
       invalidate();
-      if (data.removed > 0) {
-        const url   = data.byPass.find(p => p.pass === "url_exact")?.removed ?? 0;
-        const slug  = data.byPass.find(p => p.pass === "slug_title_price")?.removed ?? 0;
-        const cross = data.byPass.find(p => p.pass === "cross_portal")?.removed ?? 0;
-        const lines = [`${data.removed} duplicado(s) removido(s):`];
-        if (url   > 0) lines.push(`  • ${url} URL exactos (mesmo anúncio reindexado)`);
-        if (slug  > 0) lines.push(`  • ${slug} slug+título+preço iguais`);
-        if (cross > 0) lines.push(`  • ${cross} cross-portal (Imovirtual vs Casa Yes)`);
-        alert(lines.join("\n"));
-      } else {
-        alert("Nenhum duplicado encontrado.");
-      }
+      setDedupPreview(null);
+      alert(`${data.removed} duplicado(s) removido(s).`);
     },
     onError: (err: Error) => alert(`Erro ao deduplicar: ${err.message}`),
   });
@@ -212,17 +218,13 @@ export function Imoveis() {
             <RefreshCw size={10} />
           </button>
           <button
-            onClick={() => {
-              if (window.confirm("Remover anúncios duplicados do Imovirtual? (preço + área iguais entre portais)")) {
-                dedupMutation.mutate();
-              }
-            }}
-            disabled={dedupMutation.isPending}
+            onClick={() => dedupPreviewMutation.mutate()}
+            disabled={dedupPreviewMutation.isPending || dedupConfirmMutation.isPending}
             className="px-2 py-1 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1"
-            style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white", opacity: dedupMutation.isPending ? 0.6 : 1 }}
-            title="Remover duplicados entre portais"
+            style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white", opacity: dedupPreviewMutation.isPending ? 0.6 : 1 }}
+            title="Pré-visualizar duplicados antes de apagar"
           >
-            {dedupMutation.isPending ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
+            {dedupPreviewMutation.isPending ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
             Deduplicar
           </button>
         </div>
@@ -417,6 +419,160 @@ export function Imoveis() {
           isSaving={updateAlertMutation.isPending}
         />
       )}
+
+      {dedupPreview && (
+        <DedupPreviewModal
+          preview={dedupPreview}
+          onCancel={() => setDedupPreview(null)}
+          onConfirm={() => dedupConfirmMutation.mutate()}
+          isConfirming={dedupConfirmMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function DedupPreviewModal({
+  preview,
+  onCancel,
+  onConfirm,
+  isConfirming,
+}: {
+  preview: DedupResponse;
+  onCancel: () => void;
+  onConfirm: () => void;
+  isConfirming: boolean;
+}) {
+  const url   = preview.byPass.find(p => p.pass === "url_exact")?.removed ?? 0;
+  const slug  = preview.byPass.find(p => p.pass === "slug_title_price_area")?.removed ?? 0;
+  const cross = preview.byPass.find(p => p.pass === "cross_portal")?.removed ?? 0;
+
+  const groupedPairs = {
+    url_exact: preview.pairs.filter(p => p.reason === "url_exact"),
+    slug_title_price_area: preview.pairs.filter(p => p.reason === "slug_title_price_area"),
+    cross_portal_price_area: preview.pairs.filter(p => p.reason === "cross_portal_price_area"),
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div className="w-full max-w-2xl bg-white rounded-sm max-h-[85vh] overflow-y-auto" style={{ borderRadius: "3px" }}>
+        <div className="p-6 border-b" style={{ borderColor: "rgba(0,0,0,0.1)" }}>
+          <h2 className="heading-md" style={{ color: "#1a1a1a" }}>
+            Pré-visualização da Deduplicação
+          </h2>
+          <p className="text-xs mt-1" style={{ color: "#5a5a5a" }}>
+            {preview.removed} duplicado(s) detectado(s) — confirma antes de apagar
+          </p>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {url > 0 && (
+            <DedupSection
+              title={`${url} · URL idênticos`}
+              subtitle="O mesmo URL aparece duas ou mais vezes — risco zero, são definitivamente o mesmo anúncio reindexado pelo Imovirtual."
+              pairs={groupedPairs.url_exact}
+              color="#16a34a"
+            />
+          )}
+          {slug > 0 && (
+            <DedupSection
+              title={`${slug} · Slug + título + preço + área iguais`}
+              subtitle="URLs com o mesmo slug base (apenas o sufixo -IDxxx muda), e título, preço e área coincidem ao m². Quatro sinais a coincidir → falso positivo extremamente improvável."
+              pairs={groupedPairs.slug_title_price_area}
+              color="#ca8a04"
+            />
+          )}
+          {cross > 0 && (
+            <DedupSection
+              title={`${cross} · Cross-portal (Imovirtual ↔ Casa Yes)`}
+              subtitle="Anúncios em ambos os portais com o mesmo preço exacto e área ±1 m². Mantém-se o Casa Yes."
+              pairs={groupedPairs.cross_portal_price_area}
+              color="#2563eb"
+            />
+          )}
+        </div>
+
+        <div className="p-6 flex gap-2 sticky bottom-0 bg-white" style={{ borderTop: "1px solid rgba(0,0,0,0.1)" }}>
+          <button
+            onClick={onCancel}
+            disabled={isConfirming}
+            className="flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-sm transition-colors"
+            style={{ color: "#5a5a5a", background: "#e8efed" }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isConfirming}
+            className="flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-sm transition-colors text-white disabled:opacity-50"
+            style={{ background: "#2c4d46" }}
+          >
+            {isConfirming ? "A apagar..." : `Apagar ${preview.removed}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DedupSection({
+  title,
+  subtitle,
+  pairs,
+  color,
+}: {
+  title: string;
+  subtitle: string;
+  pairs: { keptUrl: string; deletedUrl: string; title: string | null; price: number | null; area: number | null }[];
+  color: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? pairs : pairs.slice(0, 3);
+
+  return (
+    <div className="border rounded-sm p-3" style={{ borderColor: "rgba(0,0,0,0.1)", borderRadius: "3px" }}>
+      <div className="flex items-center gap-2 mb-2">
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+        <h3 className="text-sm font-bold" style={{ color: "#1a1a1a" }}>{title}</h3>
+      </div>
+      <p className="text-xs mb-3" style={{ color: "#5a5a5a", lineHeight: 1.4 }}>{subtitle}</p>
+      <div className="space-y-2">
+        {visible.map((p, i) => (
+          <div key={i} className="text-xs space-y-1 p-2 rounded-sm" style={{ background: "#f8f8f8" }}>
+            {p.title && <div className="font-medium" style={{ color: "#1a1a1a" }}>{p.title}</div>}
+            <div style={{ color: "#5a5a5a" }}>
+              {p.price && `${p.price.toLocaleString("pt-PT")} €`}
+              {p.area && ` · ${p.area} m²`}
+            </div>
+            <div className="space-y-0.5 pt-1">
+              <div className="flex items-center gap-1">
+                <span style={{ color: "#16a34a" }}>✓</span>
+                <a href={p.keptUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" style={{ color: "#2c4d46" }}>
+                  {p.keptUrl}
+                </a>
+              </div>
+              <div className="flex items-center gap-1">
+                <span style={{ color: "#dc2626" }}>✗</span>
+                <a href={p.deletedUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" style={{ color: "#dc2626" }}>
+                  {p.deletedUrl}
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+        {pairs.length > 3 && !expanded && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="text-xs font-medium hover:underline"
+            style={{ color: "#2c4d46" }}
+          >
+            Ver mais {pairs.length - 3}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

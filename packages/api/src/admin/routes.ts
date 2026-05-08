@@ -790,16 +790,18 @@ router.post("/property-alerts/:id/run", authMiddleware, async (c) => {
   return c.json({ newCount });
 });
 
-// Deduplicar imóveis de um alerta específico
+// Deduplicar imóveis de um alerta específico (?dryRun=1 para preview sem apagar)
 router.post("/property-alerts/:id/dedup", authMiddleware, async (c) => {
   const id = c.req.param("id") as string;
-  const result = await deduplicateAlertListings(id);
+  const dryRun = c.req.query("dryRun") === "1";
+  const result = await deduplicateAlertListings(id, { dryRun });
   return c.json(result);
 });
 
-// Deduplicar todos os imóveis (operação global)
+// Deduplicar todos os imóveis (operação global, ?dryRun=1 para preview)
 router.post("/property-listings/dedup", authMiddleware, async (c) => {
-  const result = await deduplicateAllListings();
+  const dryRun = c.req.query("dryRun") === "1";
+  const result = await deduplicateAllListings({ dryRun });
   return c.json(result);
 });
 
