@@ -77,12 +77,103 @@ const MUNICIPIO_TO_DISTRITO: Record<string, string> = {
   "coimbra": "coimbra", "leiria": "leiria", "aveiro": "aveiro",
 };
 
+// Mapa bairro/zona → { distrito, municipio }
+// Cobre zonas frequentes de pesquisa que não são municípios (3.º nível URL).
+const BAIRRO_TO_LOCATION: Record<string, { distrito: string; municipio: string }> = {
+  // ── Município de Lisboa ──────────────────────────────────────────────────────
+  "avenidas-novas":        { distrito: "lisboa", municipio: "lisboa" },
+  "ajuda":                 { distrito: "lisboa", municipio: "lisboa" },
+  "alcantara":             { distrito: "lisboa", municipio: "lisboa" },
+  "alfama":                { distrito: "lisboa", municipio: "lisboa" },
+  "alvalade":              { distrito: "lisboa", municipio: "lisboa" },
+  "arroios":               { distrito: "lisboa", municipio: "lisboa" },
+  "baixa":                 { distrito: "lisboa", municipio: "lisboa" },
+  "belem":                 { distrito: "lisboa", municipio: "lisboa" },
+  "beato":                 { distrito: "lisboa", municipio: "lisboa" },
+  "benfica":               { distrito: "lisboa", municipio: "lisboa" },
+  "campolide":             { distrito: "lisboa", municipio: "lisboa" },
+  "campo-de-ourique":      { distrito: "lisboa", municipio: "lisboa" },
+  "carnide":               { distrito: "lisboa", municipio: "lisboa" },
+  "chiado":                { distrito: "lisboa", municipio: "lisboa" },
+  "estrela":               { distrito: "lisboa", municipio: "lisboa" },
+  "graca":                 { distrito: "lisboa", municipio: "lisboa" },
+  "intendente":            { distrito: "lisboa", municipio: "lisboa" },
+  "lapa":                  { distrito: "lisboa", municipio: "lisboa" },
+  "lumiar":                { distrito: "lisboa", municipio: "lisboa" },
+  "marvila":               { distrito: "lisboa", municipio: "lisboa" },
+  "misericordia":          { distrito: "lisboa", municipio: "lisboa" },
+  "mouraria":              { distrito: "lisboa", municipio: "lisboa" },
+  "olivais":               { distrito: "lisboa", municipio: "lisboa" },
+  "parque-das-nacoes":     { distrito: "lisboa", municipio: "lisboa" },
+  "penha-de-franca":       { distrito: "lisboa", municipio: "lisboa" },
+  "principe-real":         { distrito: "lisboa", municipio: "lisboa" },
+  "restelo":               { distrito: "lisboa", municipio: "lisboa" },
+  "santa-maria-maior":     { distrito: "lisboa", municipio: "lisboa" },
+  "santo-antonio":         { distrito: "lisboa", municipio: "lisboa" },
+  "santos":                { distrito: "lisboa", municipio: "lisboa" },
+  "sao-domingos-de-benfica": { distrito: "lisboa", municipio: "lisboa" },
+  "sao-vicente":           { distrito: "lisboa", municipio: "lisboa" },
+  "telheiras":             { distrito: "lisboa", municipio: "lisboa" },
+  // ── Município de Oeiras ──────────────────────────────────────────────────────
+  "alges":                 { distrito: "lisboa", municipio: "oeiras" },
+  "carnaxide":             { distrito: "lisboa", municipio: "oeiras" },
+  "cruz-quebrada":         { distrito: "lisboa", municipio: "oeiras" },
+  "linda-a-velha":         { distrito: "lisboa", municipio: "oeiras" },
+  "porto-salvo":           { distrito: "lisboa", municipio: "oeiras" },
+  "queijas":               { distrito: "lisboa", municipio: "oeiras" },
+  // ── Município de Cascais ─────────────────────────────────────────────────────
+  "alcabideche":           { distrito: "lisboa", municipio: "cascais" },
+  "birre":                 { distrito: "lisboa", municipio: "cascais" },
+  "estoril":               { distrito: "lisboa", municipio: "cascais" },
+  "estoril-cascais":       { distrito: "lisboa", municipio: "cascais" },
+  "monte-estoril":         { distrito: "lisboa", municipio: "cascais" },
+  "parede":                { distrito: "lisboa", municipio: "cascais" },
+  "sao-domingos-de-rana":  { distrito: "lisboa", municipio: "cascais" },
+  // ── Município de Sintra ──────────────────────────────────────────────────────
+  "agualva-cacem":         { distrito: "lisboa", municipio: "sintra" },
+  "colares":               { distrito: "lisboa", municipio: "sintra" },
+  "mem-martins":           { distrito: "lisboa", municipio: "sintra" },
+  "queluz":                { distrito: "lisboa", municipio: "sintra" },
+  "rio-de-moura":          { distrito: "lisboa", municipio: "sintra" },
+  // ── Município de Almada ──────────────────────────────────────────────────────
+  "almada-cidade":         { distrito: "setubal", municipio: "almada" },
+  "cacilhas":              { distrito: "setubal", municipio: "almada" },
+  "cova-da-piedade":       { distrito: "setubal", municipio: "almada" },
+  "feijo":                 { distrito: "setubal", municipio: "almada" },
+  "pragal":                { distrito: "setubal", municipio: "almada" },
+  "trafaria":              { distrito: "setubal", municipio: "almada" },
+  // ── Município do Porto ───────────────────────────────────────────────────────
+  "bonfim":                { distrito: "porto", municipio: "porto" },
+  "boavista":              { distrito: "porto", municipio: "porto" },
+  "campanha":              { distrito: "porto", municipio: "porto" },
+  "cedofeita":             { distrito: "porto", municipio: "porto" },
+  "foz-do-douro":          { distrito: "porto", municipio: "porto" },
+  "lordelo-do-ouro":       { distrito: "porto", municipio: "porto" },
+  "massarelos":            { distrito: "porto", municipio: "porto" },
+  "miragaia":              { distrito: "porto", municipio: "porto" },
+  "paranhos":              { distrito: "porto", municipio: "porto" },
+  "ramalde":               { distrito: "porto", municipio: "porto" },
+  "santo-ildefonso":       { distrito: "porto", municipio: "porto" },
+  "sao-nicolau":           { distrito: "porto", municipio: "porto" },
+  "vitoria":               { distrito: "porto", municipio: "porto" },
+};
+
 function buildImovirtualPath(zone: string): string {
   const slug = slugify(zone);
+
+  // 1. Distrito (ex: "lisboa" → "lisboa/lisboa")
   if (DISTRITOS.has(slug)) return `${slug}/${slug}`;
+
+  // 2. Município conhecido (ex: "oeiras" → "lisboa/oeiras")
   const distrito = MUNICIPIO_TO_DISTRITO[slug];
   if (distrito) return `${distrito}/${slug}`;
-  // Fallback: tenta como distrito puro
+
+  // 3. Bairro/zona (ex: "avenidas-novas" → "lisboa/lisboa/avenidas-novas")
+  const loc = BAIRRO_TO_LOCATION[slug];
+  if (loc) return `${loc.distrito}/${loc.municipio}/${slug}`;
+
+  // 4. Fallback: tenta como distrito puro (pode funcionar para zonas não mapeadas)
+  console.warn(`[Scraper] Zona "${zone}" não mapeada — a usar slug directo. Adiciona ao BAIRRO_TO_LOCATION se necessário.`);
   return slug;
 }
 
@@ -228,8 +319,9 @@ export async function scrapeImovirtual(params: SearchParams): Promise<PropertyLi
 
 // ─── Casa Yes ─────────────────────────────────────────────────────────────────
 // URL: https://casayes.pt/pt/<comprar|arrendar>/apartamento/<distrito>/<municipio>
-// Pagina via JSON interno hidden — extraímos os 20 anúncios SSG iniciais.
-// Filtramos client-side por nº de quartos e preço.
+// Casa Yes APENAS pre-renderiza via SSG páginas até ao nível município.
+// URLs com bairro/freguesia (3.º nível) retornam 0 itens no __NEXT_DATA__.
+// Solução: usar sempre o URL de município e filtrar client-side por regionName3.
 
 interface CasaYesAd {
   publicId: string;
@@ -251,9 +343,38 @@ function bedroomsForType(propertyType: string): number[] {
   return map[propertyType] ?? [];
 }
 
+/**
+ * Constrói o path do Casa Yes apenas até ao nível município.
+ * Se a zona for um bairro, retorna o path do município pai.
+ * Exemplo: "Avenidas Novas" → "lisboa/lisboa" (não "lisboa/lisboa/avenidas-novas")
+ */
+function buildCasaYesPath(zone: string): { path: string; neighborhoodFilter: string | null } {
+  const slug = slugify(zone);
+
+  // Distrito
+  if (DISTRITOS.has(slug)) return { path: `${slug}/${slug}`, neighborhoodFilter: null };
+
+  // Município
+  const distrito = MUNICIPIO_TO_DISTRITO[slug];
+  if (distrito) return { path: `${distrito}/${slug}`, neighborhoodFilter: null };
+
+  // Bairro → usar URL do município, filtrar por regionName3
+  const loc = BAIRRO_TO_LOCATION[slug];
+  if (loc) {
+    return {
+      path: `${loc.distrito}/${loc.municipio}`,
+      // Zona original para filtro client-side (ex: "Avenidas Novas")
+      neighborhoodFilter: zone,
+    };
+  }
+
+  // Fallback: tenta como slug directo
+  return { path: slug, neighborhoodFilter: null };
+}
+
 export async function scrapeCasaYes(params: SearchParams): Promise<PropertyListing[]> {
   const tx = params.transactionType === "rent" ? "arrendar" : "comprar";
-  const zonePath = buildImovirtualPath(params.zone); // mesmo formato distrito/municipio
+  const { path: zonePath, neighborhoodFilter } = buildCasaYesPath(params.zone);
   const url = `https://casayes.pt/pt/${tx}/apartamento/${zonePath}`;
 
   let html: string;
@@ -291,15 +412,25 @@ export async function scrapeCasaYes(params: SearchParams): Promise<PropertyListi
 
   const items = data?.props?.pageProps?.initialSearchResultsInfo?.items ?? [];
   if (items.length === 0) {
-    console.log(`[Scraper] Casa Yes: 0 anúncios para "${params.zone}"`);
+    console.log(`[Scraper] Casa Yes: 0 anúncios para "${params.zone}" (URL: ${url})`);
     return [];
   }
 
   const allowedBedrooms = bedroomsForType(params.propertyType);
 
+  // Normaliza o filtro de bairro para comparação case-insensitive sem acentos
+  const normalizeZone = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const neighborhoodNorm = neighborhoodFilter ? normalizeZone(neighborhoodFilter) : null;
+
   const listings: PropertyListing[] = [];
   for (const ad of items) {
     if (!ad?.publicId) continue;
+
+    // Filtrar por bairro quando a zona é subbairro (ex: "Avenidas Novas" dentro de "Lisboa")
+    if (neighborhoodNorm) {
+      const r3 = ad.regionName3 ? normalizeZone(ad.regionName3) : "";
+      if (!r3.includes(neighborhoodNorm) && !neighborhoodNorm.includes(r3)) continue;
+    }
 
     if (
       allowedBedrooms.length > 0 &&
