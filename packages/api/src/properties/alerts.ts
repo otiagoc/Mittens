@@ -82,7 +82,13 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     }).onConflictDoNothing();
   }
 
-  // 3) Notificações: tudo o que está em DB para este alerta sem `notifiedAt`
+  // 3) Deduplicar ANTES de notificar — evita notificações de duplicados.
+  //    Critérios são restritos (URL exacto, ou slug+título+preço+área).
+  //    Se o duplicado mais antigo já foi notificado anteriormente, o novo
+  //    é eliminado sem notificação. Se ambos forem deste scrape, fica um.
+  const dedupBeforeNotify = await deduplicateAlertListings(alertId);
+
+  // 4) Notificações: tudo o que está em DB para este alerta sem `notifiedAt`
   // Vão para o chat do CONSULTOR (perfil em settings), não para o chat da lead.
   let notifiedCount = 0;
   const consultantChatId = notifyTelegram ? await getConsultantChatId() : null;
@@ -153,16 +159,13 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     }
   }
 
-  // Deduplicar antes de actualizar lastCheckedAt
-  const dedup = await deduplicateAlertListings(alertId);
-
   // Actualiza lastCheckedAt
   await db.update(propertyAlerts)
     .set({ lastCheckedAt: new Date().toISOString() })
     .where(eq(propertyAlerts.id, alertId));
 
   console.log(
-    `[PropertyAlerts] Alerta ${alertId}: ${listings.length} dos portais, ${toInsert.length} novos em DB, ${notifiedCount} notificados, ${dedup.removed} duplicados removidos`
+    `[PropertyAlerts] Alerta ${alertId}: ${listings.length} dos portais, ${toInsert.length} novos em DB, ${dedupBeforeNotify.removed} duplicados removidos antes de notificar, ${notifiedCount} notificados`
   );
   return toInsert.length;
 }
