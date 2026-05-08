@@ -83,11 +83,19 @@ export function Imoveis() {
     onSuccess: (data) => {
       invalidate();
       if (data.removed > 0) {
-        alert(`${data.removed} anúncio(s) duplicado(s) do Imovirtual removido(s).`);
+        const url   = data.byPass.find(p => p.pass === "url_exact")?.removed ?? 0;
+        const slug  = data.byPass.find(p => p.pass === "slug_title_price")?.removed ?? 0;
+        const cross = data.byPass.find(p => p.pass === "cross_portal")?.removed ?? 0;
+        const lines = [`${data.removed} duplicado(s) removido(s):`];
+        if (url   > 0) lines.push(`  • ${url} URL exactos (mesmo anúncio reindexado)`);
+        if (slug  > 0) lines.push(`  • ${slug} slug+título+preço iguais`);
+        if (cross > 0) lines.push(`  • ${cross} cross-portal (Imovirtual vs Casa Yes)`);
+        alert(lines.join("\n"));
       } else {
         alert("Nenhum duplicado encontrado.");
       }
     },
+    onError: (err: Error) => alert(`Erro ao deduplicar: ${err.message}`),
   });
 
   const toggleAlertMutation = useMutation({

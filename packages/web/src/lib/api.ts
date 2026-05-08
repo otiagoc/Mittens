@@ -287,11 +287,11 @@ export const propertyListingsApi = {
   runAlert: (alertId: string) =>
     request<{ newCount: number }>(`/property-alerts/${alertId}/run`, { method: "POST" }),
   dedupAlert: (alertId: string) =>
-    request<{ removed: number; pairs: { keptId: string; deletedId: string; price: number; area: number }[] }>(
+    request<{ removed: number; byPass: { pass: string; removed: number }[]; pairs: { keptId: string; deletedId: string; reason: string }[] }>(
       `/property-alerts/${alertId}/dedup`, { method: "POST" }
     ),
   dedupAll: () =>
-    request<{ removed: number; pairs: { keptId: string; deletedId: string; price: number; area: number }[] }>(
+    request<{ removed: number; byPass: { pass: string; removed: number }[]; pairs: { keptId: string; deletedId: string; reason: string }[] }>(
       `/property-listings/dedup`, { method: "POST" }
     ),
 };
