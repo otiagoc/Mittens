@@ -78,6 +78,18 @@ export function Imoveis() {
     onSuccess: invalidate,
   });
 
+  const dedupMutation = useMutation({
+    mutationFn: () => propertyListingsApi.dedupAll(),
+    onSuccess: (data) => {
+      invalidate();
+      if (data.removed > 0) {
+        alert(`${data.removed} anúncio(s) duplicado(s) do Imovirtual removido(s).`);
+      } else {
+        alert("Nenhum duplicado encontrado.");
+      }
+    },
+  });
+
   const toggleAlertMutation = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
       propertyAlertsApi.toggle(id, active),
@@ -187,6 +199,20 @@ export function Imoveis() {
             title="Atualizar"
           >
             <RefreshCw size={10} />
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm("Remover anúncios duplicados do Imovirtual? (preço + área iguais entre portais)")) {
+                dedupMutation.mutate();
+              }
+            }}
+            disabled={dedupMutation.isPending}
+            className="px-2 py-1 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1"
+            style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white", opacity: dedupMutation.isPending ? 0.6 : 1 }}
+            title="Remover duplicados entre portais"
+          >
+            {dedupMutation.isPending ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
+            Deduplicar
           </button>
         </div>
       </div>

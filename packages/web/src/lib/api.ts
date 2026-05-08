@@ -286,6 +286,14 @@ export const propertyListingsApi = {
     request<{ ok: boolean }>(`/property-listings/${id}/share`, { method: "DELETE" }),
   runAlert: (alertId: string) =>
     request<{ newCount: number }>(`/property-alerts/${alertId}/run`, { method: "POST" }),
+  dedupAlert: (alertId: string) =>
+    request<{ removed: number; pairs: { keptId: string; deletedId: string; price: number; area: number }[] }>(
+      `/property-alerts/${alertId}/dedup`, { method: "POST" }
+    ),
+  dedupAll: () =>
+    request<{ removed: number; pairs: { keptId: string; deletedId: string; price: number; area: number }[] }>(
+      `/property-listings/dedup`, { method: "POST" }
+    ),
 };
 
 // Página pública de partilha (sem auth)

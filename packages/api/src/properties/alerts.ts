@@ -3,6 +3,7 @@ import { db } from "../db/client.js";
 import { propertyAlerts, propertyListings, leads, activities, settings } from "../db/schema.js";
 import { scrapeAll } from "./scraper.js";
 import { sendTelegramMessage } from "../telegram/sender.js";
+import { deduplicateAlertListings } from "./dedup.js";
 
 /**
  * Lê o `telegramChatId` do perfil do consultor em `settings.agent_profile`.
@@ -152,13 +153,16 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
     }
   }
 
+  // Deduplicar antes de actualizar lastCheckedAt
+  const dedup = await deduplicateAlertListings(alertId);
+
   // Actualiza lastCheckedAt
   await db.update(propertyAlerts)
     .set({ lastCheckedAt: new Date().toISOString() })
     .where(eq(propertyAlerts.id, alertId));
 
   console.log(
-    `[PropertyAlerts] Alerta ${alertId}: ${listings.length} dos portais, ${toInsert.length} novos em DB, ${notifiedCount} notificados`
+    `[PropertyAlerts] Alerta ${alertId}: ${listings.length} dos portais, ${toInsert.length} novos em DB, ${notifiedCount} notificados, ${dedup.removed} duplicados removidos`
   );
   return toInsert.length;
 }

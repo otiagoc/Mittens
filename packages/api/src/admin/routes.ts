@@ -10,6 +10,7 @@ import { scheduleFollowUp, summarizeConversation, getFollowUpsToday } from "./fo
 import { sendTelegramMessage } from "../telegram/sender.js";
 import { scrapeAll } from "../properties/scraper.js";
 import { runAlert } from "../properties/alerts.js";
+import { deduplicateAlertListings, deduplicateAllListings } from "../properties/dedup.js";
 import { scrapeListingDetail } from "../properties/detail.js";
 import type { AgentMessage } from "../agents/types.js";
 
@@ -783,6 +784,19 @@ router.post("/property-alerts/:id/run", authMiddleware, async (c) => {
   const id = c.req.param("id") as string;
   const newCount = await runAlert(id, true);
   return c.json({ newCount });
+});
+
+// Deduplicar imóveis de um alerta específico
+router.post("/property-alerts/:id/dedup", authMiddleware, async (c) => {
+  const id = c.req.param("id") as string;
+  const result = await deduplicateAlertListings(id);
+  return c.json(result);
+});
+
+// Deduplicar todos os imóveis (operação global)
+router.post("/property-listings/dedup", authMiddleware, async (c) => {
+  const result = await deduplicateAllListings();
+  return c.json(result);
 });
 
 // Todos os alertas (para a página Imóveis) — inclui nome da lead e contagem de imóveis
