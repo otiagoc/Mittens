@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,29 +6,38 @@
 
 @layer base {
   :root {
-    --sidebar-bg: #2c3e50;
-    --sidebar-hover: #34495e;
-    --sidebar-active: #3498db;
-    --sidebar-text: #ecf0f1;
-    --sidebar-muted: #95a5a6;
+    /* D&D Group Brand Colors */
+    --brand-primary: #2c4d46;
+    --brand-soft: #e8efed;
+    --ink: #1a1a1a;
+    --muted: #5a5a5a;
+    --line: #d6d6d6;
+    --dark-band: #1a1a1a;
 
-    --bg: #f8f9fa;
-    --card-bg: #ffffff;
-    --border: #e9ecef;
-    --text: #2c3e50;
-    --text-muted: #6c757d;
+    /* Sidebar */
+    --sidebar-bg: #2c4d46;
+    --sidebar-hover: #1f3832;
+    --sidebar-active: #2c4d46;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #a8b8b4;
 
-    --primary: #3498db;
-    --primary-dark: #2980b9;
+    /* Layout */
+    --bg: #ffffff;
+    --card-bg: #e8efed;
+    --border: #d6d6d6;
+    --text: #1a1a1a;
+    --text-muted: #5a5a5a;
+
+    /* Legacy (for compatibility) */
+    --primary: #2c4d46;
+    --primary-dark: #1f3832;
     --success: #2ecc71;
     --warning: #f39c12;
     --danger: #e74c3c;
-    --purple: #9b59b6;
-    --orange: #e67e22;
 
-    --radius: 8px;
-    --shadow: 0 2px 10px rgba(0,0,0,0.06);
-    --shadow-md: 0 4px 20px rgba(0,0,0,0.1);
+    --radius: 3px;
+    --shadow: none;
+    --shadow-md: none;
   }
 }
 
@@ -36,46 +45,186 @@
   * { box-sizing: border-box; }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg);
-    color: var(--text);
-    font-size: 14px;
-    line-height: 1.5;
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.7;
     -webkit-font-smoothing: antialiased;
+    font-weight: 400;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 }
 
 @layer components {
-  .card {
-    @apply bg-white rounded-lg border border-gray-100 shadow-sm;
+  /* Typography */
+  .display-lg {
+    @apply text-4xl font-light tracking-tight;
   }
 
+  .display-md {
+    @apply text-3xl font-light tracking-tight;
+  }
+
+  .heading-xl {
+    @apply text-2xl font-bold;
+    color: var(--brand-primary);
+  }
+
+  .heading-lg {
+    @apply text-xl font-bold;
+    color: var(--brand-primary);
+  }
+
+  .heading-md {
+    @apply text-base font-bold uppercase text-xs tracking-wider;
+    color: var(--brand-primary);
+    border-bottom: 2px solid var(--brand-primary);
+    padding-bottom: 0.5rem;
+  }
+
+  .heading-sm {
+    @apply text-sm font-semibold uppercase tracking-widest;
+    color: var(--brand-primary);
+  }
+
+  .body-text {
+    @apply text-sm leading-relaxed;
+    color: var(--ink);
+  }
+
+  .body-small {
+    @apply text-xs;
+    color: var(--muted);
+  }
+
+  .label {
+    @apply text-xs font-bold uppercase tracking-wider;
+    color: var(--brand-primary);
+  }
+
+  /* Cards */
+  .card {
+    @apply rounded-sm border-0 p-6;
+    background: var(--card-bg);
+  }
+
+  .card-white {
+    @apply rounded-sm border-0 p-6;
+    background: #ffffff;
+  }
+
+  .card-divider {
+    @apply w-full h-px;
+    background: var(--brand-primary);
+    opacity: 0.2;
+  }
+
+  /* Buttons */
   .btn-primary {
-    @apply bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2;
+    @apply text-sm font-semibold px-4 py-2.5 transition-colors flex items-center gap-2 uppercase tracking-wide;
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 3px;
+  }
+
+  .btn-primary:hover {
+    @apply opacity-90;
   }
 
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 transition-colors flex items-center gap-2;
+    @apply text-sm font-semibold px-4 py-2.5 transition-colors flex items-center gap-2 uppercase tracking-wide;
+    background: white;
+    color: var(--brand-primary);
+    border: 1px solid var(--brand-primary);
+    border-radius: 3px;
   }
 
+  .btn-secondary:hover {
+    background: var(--card-bg);
+  }
+
+  .btn-tertiary {
+    @apply text-sm font-semibold px-4 py-2.5 transition-colors flex items-center gap-2 uppercase tracking-wide;
+    background: transparent;
+    color: var(--brand-primary);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+
+  .btn-tertiary:hover {
+    background: var(--card-bg);
+  }
+
+  /* Input */
   .input {
-    @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all;
+    @apply w-full rounded-sm px-3 py-2.5 text-sm transition-all font-light;
+    border: 1px solid var(--line);
+    background: white;
+    color: var(--ink);
   }
 
+  .input:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: none;
+  }
+
+  /* Page Layout */
   .page-header {
-    @apply flex items-center justify-between mb-6;
+    @apply flex items-center justify-between mb-8 pb-6;
+    border-bottom: 1px solid var(--line);
   }
 
   .page-title {
-    @apply text-xl font-semibold text-gray-800;
+    @apply text-2xl font-bold;
+    color: var(--brand-primary);
   }
 
   .page-subtitle {
-    @apply text-sm text-gray-500 mt-0.5;
+    @apply text-xs mt-1 uppercase tracking-wider font-medium;
+    color: var(--muted);
+  }
+
+  /* Tags/Badges */
+  .tag {
+    @apply inline-block px-2 py-1 rounded text-xs font-bold uppercase tracking-widest;
+    background: var(--brand-primary);
+    color: white;
+  }
+
+  /* List */
+  .list-item {
+    @apply py-2 flex items-start gap-3;
+  }
+
+  .list-item-bullet {
+    @apply flex-shrink-0 mt-1.5 text-sm font-semibold;
+    color: var(--brand-primary);
+  }
+
+  .list-item-text {
+    @apply text-sm leading-relaxed;
+    color: var(--ink);
+  }
+
+  /* Divider */
+  .divider {
+    @apply w-full h-px;
+    background: var(--line);
+  }
+
+  .divider-accent {
+    @apply w-full h-1;
+    background: var(--brand-primary);
   }
 }

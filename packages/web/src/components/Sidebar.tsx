@@ -10,7 +10,7 @@ import { useState } from "react";
 const navItems = [
   { to: "/",         icon: LayoutDashboard, label: "Dashboard" },
   { to: "/inbox",    icon: MessageSquare,   label: "Inbox" },
-  { to: "/kanban",   icon: KanbanSquare,    label: "Kanban" },
+  { to: "/pipeline", icon: KanbanSquare,    label: "Pipeline" },
   { to: "/leads",    icon: Users,           label: "Leads" },
   { to: "/imoveis",  icon: Home,            label: "Imóveis" },
   { to: "/agents",   icon: Bot,             label: "Agentes" },
@@ -26,38 +26,28 @@ export function Sidebar() {
   return (
     <aside
       style={{ background: "var(--sidebar-bg)" }}
-      className={`${collapsed ? "w-[70px]" : "w-[220px]"} shrink-0 min-h-screen flex flex-col transition-all duration-200 relative`}
+      className={`${collapsed ? "w-[70px]" : "w-[240px]"} shrink-0 min-h-screen flex flex-col transition-all duration-200 relative`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-5 py-6" style={{ borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
         {collapsed ? (
-          /* Ícone colapsado — M minimalista */
           <div className="w-8 h-8 flex items-center justify-center shrink-0">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="20" height="20" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2 18V4L11 13L20 4V18" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
         ) : (
-          /* Wordmark expandido */
-          <div className="overflow-hidden flex items-center gap-3">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 18V4L11 13L20 4V18" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <div>
-              <span
-                className="text-white tracking-widest uppercase text-sm font-light"
-                style={{ letterSpacing: "0.2em" }}
-              >
-                MITTENS
-              </span>
-              <div className="h-px w-full mt-1" style={{ background: "rgba(255,255,255,0.2)" }} />
+          <div className="overflow-hidden flex flex-col gap-1">
+            <div className="flex items-baseline gap-1">
+              <span className="text-white uppercase text-xs font-bold tracking-wider">MITTENS</span>
             </div>
+            <div className="h-px w-8" style={{ background: "rgba(255,255,255,0.5)" }} />
           </div>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-2 space-y-0.5 mt-2">
+      <nav className="flex-1 p-3 space-y-1 mt-4">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -65,29 +55,28 @@ export function Sidebar() {
             end={to === "/"}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
+              `flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors duration-150 group text-xs font-medium uppercase tracking-wide ${
                 isActive
-                  ? "text-white"
-                  : "text-white/60 hover:text-white hover:bg-white/10"
+                  ? "text-white bg-white/15"
+                  : "text-white/70 hover:text-white hover:bg-white/10"
               }`
             }
-            style={({ isActive }) => isActive ? { background: "var(--sidebar-active)" } : {}}
           >
-            <Icon size={18} className="shrink-0" />
-            {!collapsed && <span className="text-sm font-medium">{label}</span>}
+            <Icon size={16} className="shrink-0" />
+            {!collapsed && <span>{label}</span>}
           </NavLink>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="p-2 border-t border-white/10 space-y-0.5">
+      <div className="p-3 space-y-1" style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}>
         <button
           onClick={() => { logout(queryClient); navigate("/login"); }}
           title={collapsed ? "Sair" : undefined}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all duration-150"
+          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-2xl text-xs font-medium uppercase tracking-wide text-white/70 hover:text-white hover:bg-white/10 transition-colors duration-150"
         >
-          <LogOut size={18} className="shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Sair</span>}
+          <LogOut size={16} className="shrink-0" />
+          {!collapsed && <span>Sair</span>}
         </button>
       </div>
 

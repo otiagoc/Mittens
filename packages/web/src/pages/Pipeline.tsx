@@ -10,24 +10,20 @@ import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { LeadStatusBadge, ALL_STATUSES } from "@/components/LeadStatusBadge";
 
-// ─── V3 — paleta pastel suave codificada por coluna ──────────────────────────
-//   accent  : cor saturada (barras, ponto, tag)
-//   soft    : pastel para chips e backgrounds suaves
-//   softer  : pastel ainda mais subtil (chip de follow-up)
-//   ink     : cor de texto sobre soft/softer (alto contraste)
-const COLUMNS: { id: string; label: string; accent: string; soft: string; softer: string; ink: string }[] = [
-  { id: "new",             label: "Novo",            accent: "#3b82f6", soft: "#e8f0fe", softer: "#f3f7fe", ink: "#1e3a8a" },
-  { id: "contacted",       label: "Contactado",      accent: "#d4a017", soft: "#fdf4d3", softer: "#fdfaeb", ink: "#7a5a00" },
-  { id: "qualified",       label: "Qualificado",     accent: "#8b5cf6", soft: "#ece5fb", softer: "#f6f3fd", ink: "#4c1d95" },
-  { id: "visit_scheduled", label: "Visita Agendada", accent: "#ea7c3e", soft: "#fce5d4", softer: "#fdf3eb", ink: "#7c2d12" },
-  { id: "proposal",        label: "Proposta",        accent: "#6366f1", soft: "#e3e7fc", softer: "#f1f3fe", ink: "#312e81" },
-  { id: "closed_won",      label: "Fechado ✓",       accent: "#10b981", soft: "#d4f0e2", softer: "#ebf8f1", ink: "#065f46" },
-  { id: "closed_lost",     label: "Perdido",         accent: "#ef4444", soft: "#fadbd8", softer: "#fdf0ee", ink: "#7f1d1d" },
+const COLUMNS: { id: string; label: string; color: string; bg: string }[] = [
+  { id: "new",             label: "Novo",            color: "#2c4d46", bg: "#e8efed" },
+  { id: "contacted",       label: "Contactado",      color: "#2c4d46", bg: "#e8efed" },
+  { id: "qualified",       label: "Qualificado",     color: "#2c4d46", bg: "#e8efed" },
+  { id: "visit_scheduled", label: "Visita Agendada", color: "#2c4d46", bg: "#e8efed" },
+  { id: "proposal",        label: "Proposta",        color: "#2c4d46", bg: "#e8efed" },
+  { id: "closed_won",      label: "Fechado ✓",       color: "#2c4d46", bg: "#e8efed" },
+  { id: "closed_lost",     label: "Perdido",         color: "#2c4d46", bg: "#e8efed" },
 ];
 
-export function Kanban() {
+export function Pipeline() {
   const queryClient = useQueryClient();
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  // Optimistic local status overrides
   const [localStatus, setLocalStatus] = useState<Record<string, string>>({});
 
   const { data: leadsData, isLoading } = useQuery({
@@ -44,6 +40,7 @@ export function Kanban() {
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
     onError: (_, { id }) => {
+      // Reverte optimistic update em caso de erro
       setLocalStatus((prev) => { const n = { ...prev }; delete n[id]; return n; });
     },
   });
@@ -58,6 +55,8 @@ export function Kanban() {
     if (!result.destination) return;
     const { draggableId, destination, source } = result;
     if (destination.droppableId === source.droppableId) return;
+
+    // Optimistic update imediato
     setLocalStatus((prev) => ({ ...prev, [draggableId]: destination.droppableId }));
     updateMutation.mutate({ id: draggableId, status: destination.droppableId });
   };
@@ -67,6 +66,8 @@ export function Kanban() {
   }
 
   const allLeads = leadsData?.data ?? [];
+
+  // Agrupa leads por status (com overrides locais)
   const byStatus: Record<string, Lead[]> = {};
   for (const col of COLUMNS) byStatus[col.id] = [];
   for (const lead of allLeads) {
@@ -79,16 +80,18 @@ export function Kanban() {
     <div className="p-5 flex flex-col h-full">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Pipeline</h1>
+          <h1 className="page-title">Kanban</h1>
           <p className="page-subtitle">{allLeads.length} leads · clica para ver perfil · arrasta para mover</p>
         </div>
         <button
-          onClick={() => { allLeads.forEach((l) => analyzeMutation.mutate(l.id)); }}
+          onClick={() => {
+            allLeads.forEach((l) => analyzeMutation.mutate(l.id));
+          }}
           disabled={analyzeMutation.isPending}
-          className="flex items-center gap-2 text-xs font-medium px-3 py-2 transition-colors disabled:opacity-50"
-          style={{ color: "#2c4d46", border: "1px solid #2c4d46", borderRadius: "14px", background: "white" }}
+          className="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-sm transition-colors disabled:opacity-50"
+          style={{ color: "#2c4d46", border: "1px solid #e8efed" }}
           onMouseEnter={(e) => e.currentTarget.style.background = "#e8efed"}
-          onMouseLeave={(e) => e.currentTarget.style.background = "white"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
         >
           <Brain size={13} />
           {analyzeMutation.isPending ? "A analisar..." : "Analisar todos com IA"}
@@ -100,23 +103,22 @@ export function Kanban() {
           {COLUMNS.map((col) => {
             const colLeads = byStatus[col.id] ?? [];
             return (
-              <div
-                key={col.id}
-                className="flex flex-col w-60 shrink-0 overflow-hidden"
-                style={{ background: "white", borderRadius: "20px", border: "1px solid #ececec" }}
-              >
-                {/* Top accent bar */}
-                <div style={{ height: 4, background: col.accent }} />
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-3.5 pt-3 pb-2">
-                  <span className="text-xs font-bold" style={{ color: "#2c4d46" }}>{col.label}</span>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5"
-                    style={{ background: col.softer, color: col.ink, borderRadius: "999px" }}
-                  >
-                    {colLeads.length}
-                  </span>
+              <div key={col.id} className="flex flex-col w-60 shrink-0">
+                <div
+                  className="flex items-center justify-between px-3 py-2.5 rounded-t-lg border-t-2"
+                  style={{ borderColor: col.color, background: col.bg }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold" style={{ color: col.color }}>
+                      {col.label}
+                    </span>
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                      style={{ background: col.color }}
+                    >
+                      {colLeads.length}
+                    </span>
+                  </div>
                 </div>
 
                 <Droppable droppableId={col.id}>
@@ -124,9 +126,10 @@ export function Kanban() {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className="flex-1 min-h-24 p-2.5 space-y-2 transition-colors"
+                      className="flex-1 min-h-24 p-2 space-y-2 rounded-b-sm border border-t-0 transition-colors"
                       style={{
-                        background: snapshot.isDraggingOver ? col.softer : "white",
+                        background: snapshot.isDraggingOver ? "#e8efed" : "#f9f9f9",
+                        borderColor: snapshot.isDraggingOver ? "#2c4d46" : "#e0e0e0"
                       }}
                     >
                       {colLeads.map((lead, index) => (
@@ -139,7 +142,6 @@ export function Kanban() {
                             >
                               <LeadCard
                                 lead={lead}
-                                col={col}
                                 isDragging={snapshot.isDragging}
                                 onClick={() => setSelectedLeadId(lead.id)}
                               />
@@ -150,7 +152,7 @@ export function Kanban() {
                       {provided.placeholder}
 
                       {colLeads.length === 0 && !snapshot.isDraggingOver && (
-                        <div className="text-center py-6 text-xs" style={{ color: "#a8b8b4" }}>
+                        <div className="text-center py-6 text-xs" style={{ color: "#8bb5a8" }}>
                           Arrasta um lead aqui
                         </div>
                       )}
@@ -163,6 +165,7 @@ export function Kanban() {
         </div>
       </DragDropContext>
 
+      {/* Modal de perfil */}
       {selectedLeadId && (
         <LeadModal
           leadId={selectedLeadId}
@@ -174,77 +177,7 @@ export function Kanban() {
   );
 }
 
-// ─── Card V3 — barra lateral colorida 3px + cantos 14px ──────────────────────
-
-function LeadCard({ lead, col, isDragging, onClick }: {
-  lead: Lead;
-  col: { accent: string; softer: string; ink: string };
-  isDragging: boolean;
-  onClick: () => void;
-}) {
-  const dragMoved = useRef(false);
-
-  return (
-    <div
-      onMouseDown={() => { dragMoved.current = false; }}
-      onMouseMove={() => { dragMoved.current = true; }}
-      onClick={() => { if (!dragMoved.current) onClick(); }}
-      className={cn("cursor-pointer transition-colors text-left w-full select-none relative overflow-hidden")}
-      style={{
-        background: isDragging ? col.softer : "white",
-        border: `1px solid ${isDragging ? col.accent : "#ececec"}`,
-        borderRadius: "14px",
-        padding: "10px 12px 12px",
-      }}
-    >
-      {/* Side accent bar */}
-      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: col.accent }} />
-
-      <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: 4 }}>
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-          style={{ background: "#2c4d46" }}
-        >
-          {(lead.name?.[0] ?? "?").toUpperCase()}
-        </div>
-        <span className="text-xs font-semibold leading-tight truncate" style={{ color: "#2c4d46" }}>{lead.name}</span>
-      </div>
-
-      <div className="space-y-1 mb-2" style={{ paddingLeft: 4 }}>
-        {lead.phone && (
-          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#6b7e7a" }}>
-            <Phone size={10} className="shrink-0" />{lead.phone}
-          </div>
-        )}
-        {lead.telegramUsername && (
-          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#6b7e7a" }}>
-            <Send size={10} className="shrink-0" />@{lead.telegramUsername}
-          </div>
-        )}
-        {lead.conversationSummary && (
-          <p className="text-[11px] italic line-clamp-2 mt-1" style={{ color: "#94a8a3" }}>{lead.conversationSummary}</p>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between pt-2 border-t" style={{ paddingLeft: 4, borderColor: "#f0f2f1" }}>
-        <span className="text-[10px]" style={{ color: "#a8b8b4" }}>
-          {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true, locale: pt })}
-        </span>
-        {lead.followUpAt && (
-          <span
-            className="text-[10px] flex items-center gap-1 font-semibold"
-            style={{ color: col.ink, background: col.softer, padding: "2px 8px", borderRadius: "999px" }}
-          >
-            <Calendar size={9} />
-            {format(parseISO(lead.followUpAt), "d MMM", { locale: pt })}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Secção de Alertas de Imóveis (mantida — apenas cantos arredondados) ─────
+// ─── Secção de Alertas de Imóveis ─────────────────────────────────────────────
 
 function PropertyAlertsSection({ leadId }: { leadId: string }) {
   const queryClient = useQueryClient();
@@ -316,7 +249,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
           <Bell size={11} />
           Alertas de Imóveis
           {alerts.length > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 font-bold" style={{ background: "#e8efed", color: "#2c4d46", borderRadius: "999px" }}>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "#e8efed", color: "#2c4d46" }}>
               {alerts.length}
             </span>
           )}
@@ -332,11 +265,11 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
         </button>
       </div>
 
+      {/* Alertas existentes */}
       {alerts.length > 0 && (
         <div className="space-y-1.5 mb-2">
           {alerts.map((alert) => (
-            <div key={alert.id} className={`flex items-center justify-between p-2 text-xs border ${alert.active ? "border-opacity-100" : "opacity-60"}`}
-              style={{ background: alert.active ? "#e8efed" : "#f5f5f5", borderColor: alert.active ? "#2c4d46" : "#e0e0e0", borderRadius: "12px" }}>
+            <div key={alert.id} className={`flex items-center justify-between p-2 rounded-sm text-xs border ${alert.active ? "border-opacity-100" : "opacity-60"}`} style={{ background: alert.active ? "#e8efed" : "#f5f5f5", borderColor: alert.active ? "#2c4d46" : "#e0e0e0" }}>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate" style={{ color: "#2c4d46" }}>
                   {alert.propertyType} · {alert.zone}
@@ -374,16 +307,16 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
               <div className="flex items-center gap-1 ml-2">
                 <button
                   onClick={() => toggleMutation.mutate({ alertId: alert.id, active: !alert.active })}
-                  className="p-1 transition-colors"
-                  style={{ color: alert.active ? "#2c4d46" : "#8bb5a8", borderRadius: "8px" }}
+                  className="p-1 rounded-sm transition-colors"
+                  style={{ color: alert.active ? "#2c4d46" : "#8bb5a8" }}
                   title={alert.active ? "Pausar" : "Activar"}
                 >
                   {alert.active ? <Bell size={12} /> : <BellOff size={12} />}
                 </button>
                 <button
                   onClick={() => deleteMutation.mutate(alert.id)}
-                  className="p-1 transition-colors"
-                  style={{ color: "#8bb5a8", borderRadius: "8px" }}
+                  className="p-1 rounded-sm transition-colors"
+                  style={{ color: "#8bb5a8" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#e74c3c"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#8bb5a8"}
                 >
@@ -395,8 +328,9 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
         </div>
       )}
 
+      {/* Formulário de novo alerta */}
       {showForm && (
-        <div className="space-y-2 p-3 border" style={{ background: "#e8efed", borderColor: "#2c4d46", borderRadius: "14px" }}>
+        <div className="space-y-2 p-3 rounded-sm border" style={{ background: "#e8efed", borderColor: "#2c4d46" }}>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] mb-0.5 block" style={{ color: "#2c4d46" }}>Zona</label>
@@ -430,6 +364,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
             </select>
           </div>
 
+          {/* Preço */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] mb-0.5 block" style={{ color: "#2c4d46" }}>Preço mín (€)</label>
@@ -453,6 +388,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
             </div>
           </div>
 
+          {/* Toggle filtros avançados */}
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
@@ -466,6 +402,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
 
           {showAdvanced && (
             <div className="space-y-2 pt-1 border-t" style={{ borderColor: "#2c4d46" }}>
+              {/* Área */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] mb-0.5 block" style={{ color: "#2c4d46" }}>Área mín (m²)</label>
@@ -489,6 +426,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
                 </div>
               </div>
 
+              {/* Ano construção */}
               <div>
                 <label className="text-[10px] mb-0.5 block" style={{ color: "#2c4d46" }}>Construído a partir de</label>
                 <input
@@ -500,6 +438,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
                 />
               </div>
 
+              {/* Mercado */}
               <div>
                 <label className="text-[10px] mb-0.5 block" style={{ color: "#2c4d46" }}>Mercado</label>
                 <select
@@ -513,6 +452,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
                 </select>
               </div>
 
+              {/* Anunciante */}
               <div>
                 <label className="text-[10px] mb-0.5 block" style={{ color: "#2c4d46" }}>Anunciante</label>
                 <select
@@ -533,7 +473,7 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
           )}
 
           {testResult && (
-            <div className="text-[11px] p-2" style={{ background: "#e8efed", color: "#2c4d46", borderRadius: "10px" }}>
+            <div className="text-[11px] rounded-sm p-2" style={{ background: "#e8efed", color: "#2c4d46" }}>
               ✓ Encontrados {testResult.count} anúncios actuais com estes critérios
             </div>
           )}
@@ -542,8 +482,8 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
             <button
               onClick={() => testMutation.mutate()}
               disabled={!form.zone || testMutation.isPending}
-              className="flex-1 text-xs py-1.5 transition-colors disabled:opacity-50"
-              style={{ color: "#2c4d46", border: "1px solid #2c4d46", background: "transparent", borderRadius: "12px" }}
+              className="flex-1 text-xs py-1.5 rounded-sm transition-colors disabled:opacity-50"
+              style={{ color: "#2c4d46", border: "1px solid #2c4d46", background: "transparent" }}
               onMouseEnter={(e) => !(!form.zone || testMutation.isPending) && (e.currentTarget.style.background = "#e8efed")}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
@@ -552,8 +492,8 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
             <button
               onClick={() => createMutation.mutate()}
               disabled={!form.zone || createMutation.isPending}
-              className="flex-1 text-xs py-1.5 text-white transition-colors disabled:opacity-50"
-              style={{ background: "#2c4d46", borderRadius: "12px" }}
+              className="flex-1 text-xs py-1.5 rounded-sm text-white transition-colors disabled:opacity-50"
+              style={{ background: "#2c4d46" }}
               onMouseEnter={(e) => !(!form.zone || createMutation.isPending) && (e.currentTarget.style.background = "#1f3a35")}
               onMouseLeave={(e) => e.currentTarget.style.background = "#2c4d46"}
             >
@@ -566,7 +506,70 @@ function PropertyAlertsSection({ leadId }: { leadId: string }) {
   );
 }
 
-// ─── Modal de perfil (cantos arredondados, lógica intacta) ───────────────────
+// ─── Card ─────────────────────────────────────────────────────────────────────
+
+function LeadCard({ lead, isDragging, onClick }: {
+  lead: Lead;
+  isDragging: boolean;
+  onClick: () => void;
+}) {
+  const dragMoved = useRef(false);
+
+  return (
+    <div
+      onMouseDown={() => { dragMoved.current = false; }}
+      onMouseMove={() => { dragMoved.current = true; }}
+      onClick={() => { if (!dragMoved.current) onClick(); }}
+      className={cn(
+        "bg-white rounded-sm border p-3 cursor-pointer transition-colors text-left w-full select-none"
+      )}
+      style={{
+        borderColor: isDragging ? "#2c4d46" : "#e0e0e0",
+        background: isDragging ? "#e8efed" : "white"
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+          style={{ background: "#2c4d46" }}
+        >
+          {(lead.name?.[0] ?? "?").toUpperCase()}
+        </div>
+        <span className="text-xs font-semibold leading-tight truncate" style={{ color: "#2c4d46" }}>{lead.name}</span>
+      </div>
+
+      <div className="space-y-1 mb-2">
+        {lead.phone && (
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#6b7e7a" }}>
+            <Phone size={10} className="shrink-0" />{lead.phone}
+          </div>
+        )}
+        {lead.telegramUsername && (
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#6b7e7a" }}>
+            <Send size={10} className="shrink-0" />@{lead.telegramUsername}
+          </div>
+        )}
+        {lead.conversationSummary && (
+          <p className="text-[11px] italic line-clamp-2 mt-1" style={{ color: "#8bb5a8" }}>{lead.conversationSummary}</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "#e8efed" }}>
+        <span className="text-[10px]" style={{ color: "#8bb5a8" }}>
+          {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true, locale: pt })}
+        </span>
+        {lead.followUpAt && (
+          <span className="text-[10px] flex items-center gap-0.5" style={{ color: "#2c4d46" }}>
+            <Calendar size={9} />
+            {format(parseISO(lead.followUpAt), "d MMM", { locale: pt })}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de perfil ──────────────────────────────────────────────────────────
 
 function LeadModal({ leadId, onClose, onDeleted }: {
   leadId: string;
@@ -638,10 +641,9 @@ function LeadModal({ leadId, onClose, onDeleted }: {
       className="fixed inset-0 bg-black/40 z-50 flex items-center justify-end"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        className="w-96 h-full bg-white shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200"
-        style={{ borderTopLeftRadius: "20px", borderBottomLeftRadius: "20px" }}
-      >
+      <div className="w-96 h-full bg-white shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200">
+
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "#e8efed" }}>
           <h2 className="font-semibold text-sm" style={{ color: "#2c4d46" }}>Perfil do Lead</h2>
           <button onClick={onClose} className="transition-colors" style={{ color: "#8bb5a8" }}
@@ -656,6 +658,7 @@ function LeadModal({ leadId, onClose, onDeleted }: {
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">A carregar...</div>
         ) : (
           <>
+            {/* Avatar + nome */}
             <div className="p-5 border-b text-center" style={{ borderColor: "#e8efed" }}>
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3"
@@ -674,6 +677,7 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               </div>
             </div>
 
+            {/* Contactos */}
             <div className="px-5 py-3 border-b space-y-2" style={{ borderColor: "#e8efed" }}>
               {lead.phone && (
                 <div className="flex items-center gap-2 text-sm" style={{ color: "#6b7e7a" }}>
@@ -690,6 +694,7 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               )}
             </div>
 
+            {/* Fase do Funil */}
             <div className="px-5 py-3 border-b" style={{ borderColor: "#e8efed" }}>
               <div className="text-xs font-medium mb-1.5" style={{ color: "#2c4d46" }}>Fase do Funil</div>
               <select
@@ -703,6 +708,7 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               </select>
             </div>
 
+            {/* Follow-up */}
             <div className="px-5 py-3 border-b" style={{ borderColor: "#e8efed" }}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="text-xs font-medium flex items-center gap-1.5" style={{ color: "#2c4d46" }}>
@@ -712,13 +718,15 @@ function LeadModal({ leadId, onClose, onDeleted }: {
                   onClick={() => setShowFollowUpForm((v) => !v)}
                   className="text-[10px] flex items-center gap-0.5 transition-colors"
                   style={{ color: "#2c4d46" }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = "#8bb5a8"}
+                  onMouseLeave={(e) => e.currentTarget.style.color = "#2c4d46"}
                 >
                   {showFollowUpForm ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                   {followUpDate ? "Alterar" : "Agendar"}
                 </button>
               </div>
               {followUpDate && !showFollowUpForm && (
-                <div className="p-2 text-xs" style={{ background: "#e8efed", borderRadius: "12px" }}>
+                <div className="rounded-sm p-2 text-xs" style={{ background: "#e8efed" }}>
                   <div className="font-medium" style={{ color: "#2c4d46" }}>
                     {format(followUpDate, "d MMM yyyy · HH:mm", { locale: pt })}
                   </div>
@@ -744,8 +752,10 @@ function LeadModal({ leadId, onClose, onDeleted }: {
                   <button
                     onClick={() => scheduleFollowUpMutation.mutate()}
                     disabled={!followUpText.trim() || scheduleFollowUpMutation.isPending}
-                    className="w-full text-xs py-1.5 text-white transition-colors disabled:opacity-50"
-                    style={{ background: "#2c4d46", borderRadius: "12px" }}
+                    className="w-full text-xs py-1.5 rounded-sm text-white transition-colors disabled:opacity-50"
+                    style={{ background: "#2c4d46" }}
+                    onMouseEnter={(e) => !(!followUpText.trim() || scheduleFollowUpMutation.isPending) && (e.currentTarget.style.background = "#1f3a35")}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "#2c4d46"}
                   >
                     {scheduleFollowUpMutation.isPending ? "A agendar..." : "Agendar Follow-up"}
                   </button>
@@ -753,6 +763,7 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               )}
             </div>
 
+            {/* Resumo */}
             <div className="px-5 py-3 border-b" style={{ borderColor: "#e8efed" }}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="text-xs font-medium flex items-center gap-1.5" style={{ color: "#2c4d46" }}>
@@ -763,38 +774,45 @@ function LeadModal({ leadId, onClose, onDeleted }: {
                   disabled={summarizeMutation.isPending}
                   className="text-[10px] transition-colors"
                   style={{ color: "#8bb5a8" }}
+                  onMouseEnter={(e) => !summarizeMutation.isPending && (e.currentTarget.style.color = "#2c4d46")}
+                  onMouseLeave={(e) => e.currentTarget.style.color = "#8bb5a8"}
                 >
                   {summarizeMutation.isPending ? "A gerar..." : "Atualizar"}
                 </button>
               </div>
               {lead.conversationSummary ? (
-                <p className="text-xs leading-relaxed p-2" style={{ background: "#e8efed", color: "#6b7e7a", borderRadius: "12px" }}>
+                <p className="text-xs leading-relaxed rounded-sm p-2" style={{ background: "#e8efed", color: "#6b7e7a", borderRadius: "3px" }}>
                   {lead.conversationSummary}
                 </p>
               ) : (
                 <button
                   onClick={() => summarizeMutation.mutate()}
                   disabled={summarizeMutation.isPending}
-                  className="w-full text-xs py-1.5 transition-colors disabled:opacity-50"
-                  style={{ background: "transparent", border: "1px solid #e8efed", color: "#2c4d46", borderRadius: "12px" }}
+                  className="w-full text-xs py-1.5 rounded-sm transition-colors disabled:opacity-50"
+                  style={{ background: "transparent", border: "1px solid #e8efed", color: "#2c4d46", borderRadius: "3px" }}
+                  onMouseEnter={(e) => !summarizeMutation.isPending && (e.currentTarget.style.background = "#e8efed")}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 >
                   {summarizeMutation.isPending ? "A gerar..." : "Gerar Resumo"}
                 </button>
               )}
             </div>
 
+            {/* IA */}
             <div className="px-5 py-3 border-b" style={{ borderColor: "#e8efed" }}>
               <button
                 onClick={() => analyzeMutation.mutate()}
                 disabled={analyzeMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 text-xs font-medium py-2 px-3 transition-colors disabled:opacity-50"
-                style={{ background: "transparent", border: "1px solid #2c4d46", color: "#2c4d46", borderRadius: "12px" }}
+                className="w-full flex items-center justify-center gap-2 text-xs font-medium py-2 px-3 rounded-sm transition-colors disabled:opacity-50"
+                style={{ background: "transparent", border: "1px solid #e8efed", color: "#2c4d46", borderRadius: "3px" }}
+                onMouseEnter={(e) => !analyzeMutation.isPending && (e.currentTarget.style.background = "#e8efed")}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
                 <Brain size={12} />
                 {analyzeMutation.isPending ? "A analisar..." : "Analisar com IA"}
               </button>
               {analyzeMutation.data && (
-                <div className="mt-2 text-xs p-2" style={{ background: "#e8efed", color: "#2c4d46", borderRadius: "12px" }}>
+                <div className="mt-2 text-xs rounded-sm p-2" style={{ background: "#e8efed", color: "#2c4d46", borderRadius: "3px" }}>
                   <div className="font-medium">
                     {analyzeMutation.data.changed
                       ? `✓ Movido para: ${analyzeMutation.data.stage}`
@@ -805,6 +823,7 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               )}
             </div>
 
+            {/* Actividades */}
             <div className="px-5 py-3 flex-1">
               <div className="text-xs font-medium mb-2" style={{ color: "#2c4d46" }}>Actividades</div>
               {lead.activities.length === 0 ? (
@@ -826,8 +845,10 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               )}
             </div>
 
+            {/* Alertas de Imóveis */}
             <PropertyAlertsSection leadId={leadId} />
 
+            {/* Eliminar */}
             <div className="px-5 py-3 border-t" style={{ borderColor: "#e8efed" }}>
               {confirmDelete ? (
                 <div className="space-y-2">
@@ -835,16 +856,20 @@ function LeadModal({ leadId, onClose, onDeleted }: {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmDelete(false)}
-                      className="flex-1 text-xs py-1.5 transition-colors"
-                      style={{ background: "transparent", border: "1px solid #e8efed", color: "#2c4d46", borderRadius: "12px" }}
+                      className="flex-1 text-xs py-1.5 rounded-sm transition-colors"
+                      style={{ background: "transparent", border: "1px solid #e8efed", color: "#2c4d46", borderRadius: "3px" }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "#e8efed"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={() => deleteMutation.mutate()}
                       disabled={deleteMutation.isPending}
-                      className="flex-1 text-xs py-1.5 text-white transition-colors disabled:opacity-50"
-                      style={{ background: "#e74c3c", borderRadius: "12px" }}
+                      className="flex-1 text-xs py-1.5 rounded-sm text-white transition-colors disabled:opacity-50"
+                      style={{ background: "#e74c3c", borderRadius: "3px" }}
+                      onMouseEnter={(e) => !deleteMutation.isPending && (e.currentTarget.style.background = "#c0392b")}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "#e74c3c"}
                     >
                       {deleteMutation.isPending ? "A eliminar..." : "Confirmar"}
                     </button>
@@ -853,8 +878,8 @@ function LeadModal({ leadId, onClose, onDeleted }: {
               ) : (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 transition-colors"
-                  style={{ background: "transparent", border: "1px solid transparent", color: "#e74c3c", borderRadius: "12px" }}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-sm transition-colors"
+                  style={{ background: "transparent", border: "1px solid transparent", color: "#e74c3c", borderRadius: "3px" }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = "#c0392b"; e.currentTarget.style.background = "#fadbd8"; e.currentTarget.style.borderColor = "#f5b7b1"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = "#e74c3c"; e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}
                 >

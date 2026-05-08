@@ -28,31 +28,34 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#2c4d46" }}>
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-10">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center mb-12">
           <div
-            className="flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
-            style={{ background: "#2c3e50" }}
+            className="flex items-center justify-center w-14 h-14 rounded-sm mb-6"
+            style={{ background: "rgba(255,255,255,0.1)" }}
           >
-            <svg width="32" height="32" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="28" height="28" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2 18V4L11 13L20 4V18" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <h1
-            className="text-gray-800 tracking-widest uppercase font-light"
-            style={{ fontSize: "1.1rem", letterSpacing: "0.3em" }}
-          >
-            MITTENS
-          </h1>
-          <div className="w-12 h-px bg-gray-300 mt-2 mb-1" />
-          <p className="text-xs text-gray-400 tracking-wide">CRM Platform</p>
+          <div className="text-center">
+            <h1
+              className="text-white uppercase font-light text-2xl tracking-wider"
+            >
+              <span className="font-bold">MITTENS</span>
+            </h1>
+            <div className="w-8 h-px mx-auto mt-3 mb-2" style={{ background: "rgba(255,255,255,0.4)" }} />
+            <p className="text-xs text-white/70 tracking-wide uppercase font-medium">Property Consultants</p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border p-6 space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Password
+            <label className="block text-xs font-bold mb-2 uppercase tracking-wide text-white/90">
+              Senha
             </label>
             <div className="relative">
               <input
@@ -60,13 +63,19 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input w-full"
+                style={{
+                  background: "rgba(255,255,255,0.95)",
+                  borderColor: "rgba(255,255,255,0.3)",
+                  color: "#1a1a1a"
+                }}
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: "#5a5a5a" }}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -74,17 +83,31 @@ export function Login() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-xs font-medium" style={{ color: "#e74c3c" }}>
+              {error}
+            </p>
           )}
 
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg py-2 text-sm transition-colors"
+            className="btn-primary w-full justify-center"
+            style={{
+              opacity: loading || !password ? 0.6 : 1,
+              background: "rgba(232, 239, 237, 0.95)",
+              color: "#2c4d46"
+            }}
           >
             {loading ? "A entrar..." : "Entrar"}
           </button>
         </form>
+
+        {/* Footer */}
+        <div className="mt-10 text-center">
+          <p className="text-xs text-white/50 tracking-wide">
+            Nº1 da Europa em Agentes IA Imobiliários
+          </p>
+        </div>
       </div>
     </div>
   );

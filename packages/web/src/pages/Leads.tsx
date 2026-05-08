@@ -22,15 +22,16 @@ export function Leads() {
   });
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-8 space-y-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Leads</h1>
-          <p className="text-sm text-slate-500">{data?.total ?? 0} leads no total</p>
+          <h1 className="page-title">Leads</h1>
+          <p className="page-subtitle">{data?.total ?? 0} leads no total</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 text-white text-xs font-bold uppercase tracking-wide px-3 py-2 rounded-lg transition-colors"
+          style={{ background: "#2c4d46" }}
         >
           <Plus size={16} />
           Novo Lead
@@ -40,18 +41,18 @@ export function Leads() {
       {/* Filtros */}
       <div className="flex gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#8bb5a8" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Pesquisar..."
-            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input w-full pl-8"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input"
         >
           <option value="">Todos os estados</option>
           {ALL_STATUSES.map(({ value, label }) => (
@@ -61,20 +62,20 @@ export function Leads() {
       </div>
 
       {/* Tabela */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="card rounded-sm overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
         {isLoading ? (
           <div className="p-8 text-center text-sm text-slate-500">A carregar...</div>
         ) : !data?.data.length ? (
           <div className="p-8 text-center text-sm text-slate-500">Nenhum lead encontrado.</div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b">
+            <thead style={{ background: "#e8efed" }} className="border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Nome</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Contacto</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Estado</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Fonte</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Última Actividade</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "#2c4d46" }}>Nome</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "#2c4d46" }}>Contacto</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "#2c4d46" }}>Estado</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "#2c4d46" }}>Fonte</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "#2c4d46" }}>Última Actividade</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -113,37 +114,40 @@ function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
   return (
     <tr
       onClick={onClick}
-      className="border-b last:border-0 hover:bg-slate-50 cursor-pointer transition-colors"
+      className="border-b last:border-0 cursor-pointer transition-colors"
+      style={{ background: "transparent" }}
+      onMouseEnter={(e) => e.currentTarget.style.background = "#e8efed"}
+      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" style={{ background: "#e8efed", color: "#2c4d46" }}>
             {(lead.name?.[0] ?? "?").toUpperCase()}
           </div>
           <div>
-            <div className="font-medium text-slate-900">{lead.name}</div>
+            <div className="font-medium" style={{ color: "#2c4d46" }}>{lead.name}</div>
             {lead.telegramUsername && (
-              <div className="text-xs text-slate-400">@{lead.telegramUsername}</div>
+              <div className="text-xs" style={{ color: "#8bb5a8" }}>@{lead.telegramUsername}</div>
             )}
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-slate-600">
+      <td className="px-4 py-3" style={{ color: "#6b7e7a" }}>
         <div className="space-y-0.5">
           {lead.phone && (
             <div className="flex items-center gap-1 text-xs">
-              <Phone size={11} className="text-slate-400" />
+              <Phone size={11} style={{ color: "#8bb5a8" }} />
               {lead.phone}
             </div>
           )}
           {lead.email && (
             <div className="flex items-center gap-1 text-xs">
-              <Mail size={11} className="text-slate-400" />
+              <Mail size={11} style={{ color: "#8bb5a8" }} />
               {lead.email}
             </div>
           )}
           {!lead.phone && !lead.email && (
-            <span className="text-xs text-slate-400">—</span>
+            <span className="text-xs" style={{ color: "#8bb5a8" }}>—</span>
           )}
         </div>
       </td>
@@ -153,19 +157,22 @@ function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
       <td className="px-4 py-3">
         <span className={cn(
           "inline-flex items-center gap-1 text-xs",
-          lead.source === "telegram" ? "text-blue-600" : "text-slate-500"
+          lead.source === "telegram" ? "text-green-700" : "text-slate-500"
         )}>
           {lead.source === "telegram" ? <Send size={11} /> : null}
           {lead.source}
         </span>
       </td>
-      <td className="px-4 py-3 text-xs text-slate-500">
+      <td className="px-4 py-3 text-xs" style={{ color: "#8bb5a8" }}>
         {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true, locale: pt })}
       </td>
       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setConfirming(true)}
-          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: "#8bb5a8" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#e74c3c"; e.currentTarget.style.background = "#e8efed"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#8bb5a8"; e.currentTarget.style.background = "transparent"; }}
           title="Eliminar lead"
         >
           <Trash2 size={14} />
@@ -202,43 +209,52 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="font-semibold text-slate-900">Novo Lead</h2>
+      <div className="bg-white rounded-sm w-full max-w-md p-6 space-y-4" style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
+        <h2 className="font-semibold" style={{ color: "#2c4d46" }}>Novo Lead</h2>
 
         {(["name", "phone", "email"] as const).map((field) => (
           <div key={field}>
-            <label className="block text-xs font-medium text-slate-600 mb-1 capitalize">
+            <label className="label block text-xs font-medium mb-1 capitalize">
               {field === "name" ? "Nome *" : field === "phone" ? "Telefone" : "Email"}
             </label>
             <input
               value={form[field]}
               onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input w-full"
             />
           </div>
         ))}
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Notas</label>
+          <label className="label block text-xs font-medium mb-1">Notas</label>
           <textarea
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             rows={3}
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="input w-full resize-none"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             onClick={onClose}
-            className="flex-1 border rounded-lg py-2 text-sm text-slate-600 hover:bg-slate-50"
+            className="flex-1 rounded-lg py-2 text-sm transition-colors"
+            style={{ color: "#2c4d46", border: "1px solid #e8efed" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "#e8efed"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           >
             Cancelar
           </button>
           <button
             onClick={() => mutation.mutate({ ...form, source: "manual" })}
             disabled={!form.name || mutation.isPending}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm"
+            className="flex-1 rounded-lg py-2 text-sm text-white transition-colors"
+            style={{
+              background: "#2c4d46",
+              opacity: !form.name || mutation.isPending ? 0.6 : 1
+            }}
+            onMouseEnter={(e) => { if (!(!form.name || mutation.isPending)) e.currentTarget.style.background = "#1f3a35"; }}
+            onMouseLeave={(e) => e.currentTarget.style.background = "#2c4d46"}
           >
             {mutation.isPending ? "A criar..." : "Criar Lead"}
           </button>

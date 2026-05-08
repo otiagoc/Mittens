@@ -1,35 +1,108 @@
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi, type FollowUpLead } from "@/lib/api";
-import { Users, MessageSquare, Bot, TrendingUp, Calendar, Phone, AlertCircle, Send } from "lucide-react";
+import { Users, Sparkles, Trophy, TrendingUp, Calendar, AlertCircle, Send } from "lucide-react";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
-import { LeadStatusBadge } from "@/components/LeadStatusBadge";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
 } from "recharts";
 
-const STAGE_COLORS: Record<string, string> = {
-  new: "#3498db",
-  contacted: "#f39c12",
-  qualified: "#9b59b6",
-  visit_scheduled: "#e67e22",
-  proposal: "#1abc9c",
-  closed_won: "#2ecc71",
-  closed_lost: "#e74c3c",
+// ─── V3 — paleta pastel codificada por fase (mesma do Pipeline) ──────────────
+const STAGE_PALETTE: Record<string, { label: string; accent: string; soft: string; softer: string; ink: string }> = {
+  new:             { label: "Novo",            accent: "#3b82f6", soft: "#e8f0fe", softer: "#f3f7fe", ink: "#1e3a8a" },
+  contacted:       { label: "Contactado",      accent: "#d4a017", soft: "#fdf4d3", softer: "#fdfaeb", ink: "#7a5a00" },
+  qualified:       { label: "Qualificado",     accent: "#8b5cf6", soft: "#ece5fb", softer: "#f6f3fd", ink: "#4c1d95" },
+  visit_scheduled: { label: "Visita Agendada", accent: "#ea7c3e", soft: "#fce5d4", softer: "#fdf3eb", ink: "#7c2d12" },
+  proposal:        { label: "Proposta",        accent: "#6366f1", soft: "#e3e7fc", softer: "#f1f3fe", ink: "#312e81" },
+  closed_won:      { label: "Fechado",         accent: "#10b981", soft: "#d4f0e2", softer: "#ebf8f1", ink: "#065f46" },
+  closed_lost:     { label: "Perdido",         accent: "#ef4444", soft: "#fadbd8", softer: "#fdf0ee", ink: "#7f1d1d" },
 };
 
-const STAGE_LABELS: Record<string, string> = {
-  new: "Novos",
-  contacted: "Contactados",
-  qualified: "Qualificados",
-  visit_scheduled: "Visita Agendada",
-  proposal: "Proposta",
-  closed_won: "Fechados ✓",
-  closed_lost: "Perdidos",
-};
+const stagePal = (s: string) =>
+  STAGE_PALETTE[s] ?? { label: s, accent: "#94a8a3", soft: "#eef0ef", softer: "#f5f6f5", ink: "#2c4d46" };
 
+// ─── Section card wrapper (cantos 20px) ──────────────────────────────────────
+function SectionCard({
+  title, subtitle, action, children, padding = 18,
+}: {
+  title?: string; subtitle?: string; action?: React.ReactNode;
+  children: React.ReactNode; padding?: number;
+}) {
+  return (
+    <section
+      style={{
+        background: "white", borderRadius: 20, border: "1px solid #ececec",
+        padding, display: "flex", flexDirection: "column", gap: 14, minWidth: 0,
+      }}
+    >
+      {(title || action) && (
+        <header className="flex justify-between items-start gap-3">
+          <div>
+            {title && <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#2c4d46" }}>{title}</h2>}
+            {subtitle && (
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: "#6b7e7a", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 500 }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+          {action}
+        </header>
+      )}
+      {children}
+    </section>
+  );
+}
+
+// ─── KPI card ────────────────────────────────────────────────────────────────
+function KpiCard({
+  label, value, delta, accent, soft, ink, icon: Icon,
+}: {
+  label: string; value: string | number; delta?: string;
+  accent: string; soft: string; ink: string;
+  icon: React.ComponentType<{ size?: number }>;
+}) {
+  return (
+    <div
+      style={{
+        background: "white", borderRadius: 20, padding: "16px 18px",
+        border: "1px solid #ececec", overflow: "hidden", position: "relative",
+        display: "flex", flexDirection: "column", gap: 10,
+      }}
+    >
+      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: accent }} />
+      <div className="flex justify-between items-start" style={{ paddingLeft: 4 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#6b7e7a", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {label}
+        </span>
+        <div style={{
+          width: 30, height: 30, borderRadius: 10, background: soft, color: ink,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <Icon size={14} />
+        </div>
+      </div>
+      <div className="flex items-baseline gap-2" style={{ paddingLeft: 4 }}>
+        <span style={{ fontSize: 30, fontWeight: 700, color: "#2c4d46", letterSpacing: "-0.02em", lineHeight: 1 }}>
+          {value}
+        </span>
+        {delta && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+            background: soft, color: ink,
+          }}>
+            {delta}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MAIN
+// ═════════════════════════════════════════════════════════════════════════════
 export function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["stats"],
@@ -38,275 +111,266 @@ export function Dashboard() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
-        A carregar...
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">A carregar...</div>;
   }
 
-  const statCards = [
-    {
-      label: "Total Leads",
-      value: stats?.totalLeads ?? 0,
-      icon: Users,
-      color: "#3498db",
-      bg: "#ebf5fb",
-      change: `+${stats?.newToday ?? 0} hoje`,
-    },
-    {
-      label: "Novos Hoje",
-      value: stats?.newToday ?? 0,
-      icon: TrendingUp,
-      color: "#2ecc71",
-      bg: "#eafaf1",
-      change: "novos leads",
-    },
-    {
-      label: "Conversas",
-      value: stats?.totalConversations ?? 0,
-      icon: MessageSquare,
-      color: "#9b59b6",
-      bg: "#f5eef8",
-      change: "activas",
-    },
-    {
-      label: "Agentes Ativos",
-      value: stats?.activeAgents ?? 0,
-      icon: Bot,
-      color: "#e67e22",
-      bg: "#fef9e7",
-      change: "disponíveis",
-    },
-  ];
+  const totalLeads = stats?.totalLeads ?? 0;
+  const newToday = stats?.newToday ?? 0;
+  const totalConv = stats?.totalConversations ?? 0;
+  const closedWon = (stats?.leadsByStatus ?? []).find((s) => s.status === "closed_won")?.count ?? 0;
 
-  // Dados para o gráfico de funil
-  const funnelData = (stats?.leadsByStatus ?? []).map(({ status, count }) => ({
-    name: STAGE_LABELS[status] ?? status,
-    value: Number(count),
-    fill: STAGE_COLORS[status] ?? "#95a5a6",
-  }));
+  // Funnel data
+  const funnelData = (stats?.leadsByStatus ?? []).map(({ status, count }) => {
+    const pal = stagePal(status);
+    return { status, name: pal.label, value: Number(count), fill: pal.accent, soft: pal.soft, ink: pal.ink };
+  });
+  const funnelMax = Math.max(1, ...funnelData.map((d) => d.value));
 
-  // Gera os últimos 6 meses como eixo (mesmo que sem dados)
-  const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-  const last6Months = Array.from({ length: 6 }, (_, i) => {
+  // Crescimento últimos 6 meses
+  const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const last6 = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - (5 - i));
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    return { key, label: MONTH_NAMES[d.getMonth()] };
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: MONTHS[d.getMonth()] };
   });
-
-  const leadsMap = Object.fromEntries(
-    (stats?.monthlyLeads ?? []).map(({ month, count }) => [month, Number(count)])
-  );
-  const messagesMap = Object.fromEntries(
-    (stats?.monthlyMessages ?? []).map(({ month, count }) => [month, Number(count)])
-  );
-
-  const growthData = last6Months.map(({ key, label }) => ({
-    mes: label,
-    leads: leadsMap[key] ?? 0,
-    mensagens: messagesMap[key] ?? 0,
+  const leadsMap = Object.fromEntries((stats?.monthlyLeads ?? []).map(({ month, count }) => [month, Number(count)]));
+  const messagesMap = Object.fromEntries((stats?.monthlyMessages ?? []).map(({ month, count }) => [month, Number(count)]));
+  const growthData = last6.map(({ key, label }) => ({
+    mes: label, leads: leadsMap[key] ?? 0, mensagens: messagesMap[key] ?? 0,
   }));
 
+  const today = new Date();
+  const greeting = today.getHours() < 12 ? "Bom dia" : today.getHours() < 19 ? "Boa tarde" : "Boa noite";
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-4" style={{ background: "#fafafa", minHeight: "100%" }}>
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold text-gray-800">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Visão geral da plataforma D&D Group</p>
+      <div className="flex justify-between items-end mb-2">
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#2c4d46", letterSpacing: "-0.01em" }}>
+            {greeting}
+          </h1>
+          <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 500, color: "#6b7e7a", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            {format(today, "EEEE · d 'de' MMMM", { locale: pt })} · {totalLeads} leads no total
+          </p>
+        </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map(({ label, value, icon: Icon, color, bg, change }) => (
-          <div key={label} className="card p-5 hover:-translate-y-0.5 transition-transform">
-            <div className="flex items-center justify-between mb-4">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center"
-                style={{ background: bg }}
-              >
-                <Icon size={20} style={{ color }} />
+      {/* Row 1 — KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <KpiCard label="Total leads" value={totalLeads}
+          accent="#3b82f6" soft="#e8f0fe" ink="#1e3a8a"
+          delta={newToday > 0 ? `+${newToday} hoje` : undefined} icon={Users} />
+        <KpiCard label="Novos hoje" value={newToday}
+          accent="#8b5cf6" soft="#ece5fb" ink="#4c1d95"
+          delta="últimas 24h" icon={Sparkles} />
+        <KpiCard label="Fechados" value={closedWon}
+          accent="#10b981" soft="#d4f0e2" ink="#065f46"
+          delta="todos" icon={Trophy} />
+        <KpiCard label="Conversas" value={totalConv}
+          accent="#ea7c3e" soft="#fce5d4" ink="#7c2d12"
+          delta="activas" icon={TrendingUp} />
+      </div>
+
+      {/* Row 2 — Crescimento (wide) + Donut por fase */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        <div className="lg:col-span-2">
+          <SectionCard
+            title="Actividade — últimos 6 meses"
+            subtitle="leads e mensagens"
+            action={
+              <div className="flex items-center gap-3 text-[10px]" style={{ color: "#6b7e7a" }}>
+                <span className="flex items-center gap-1.5">
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: "#3b82f6" }} />Leads
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: "#8b5cf6" }} />Mensagens
+                </span>
               </div>
-              <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: bg, color }}>
-                {change}
-              </span>
-            </div>
-            <div className="text-3xl font-bold text-gray-800">{value}</div>
-            <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Bar chart — crescimento */}
-        <div className="card p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-700">Actividade — Últimos 6 Meses</h2>
-            <div className="flex items-center gap-4 text-xs text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#3498db" }} />
-                Leads
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#2ecc71" }} />
-                Mensagens
-              </span>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={growthData} barSize={14} barCategoryGap="30%">
-              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: "#9ca3af" }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", fontSize: 12 }}
-                cursor={{ fill: "#f9fafb" }}
-              />
-              <Bar dataKey="leads" name="Leads" fill="#3498db" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="mensagens" name="Mensagens" fill="#2ecc71" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+            }
+          >
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={growthData} barSize={14} barCategoryGap="30%">
+                <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#6b7e7a" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#6b7e7a" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: "1px solid #ececec", background: "#fff", fontSize: 11 }}
+                  cursor={{ fill: "#f4f5f5" }}
+                />
+                <Bar dataKey="leads" name="Leads" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="mensagens" name="Mensagens" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </SectionCard>
         </div>
 
-        {/* Pie chart — funil */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Leads por Fase</h2>
+        <SectionCard title="Distribuição por fase" subtitle="estado actual">
           {funnelData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-xs">
+            <div className="flex items-center justify-center h-48 text-xs" style={{ color: "#a8b8b4" }}>
               Sem dados ainda
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={funnelData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {funnelData.map((entry, index) => (
-                    <Cell key={index} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", fontSize: 12 }}
-                />
-                <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="flex items-center gap-3">
+              <ResponsiveContainer width={140} height={140}>
+                <PieChart>
+                  <Pie data={funnelData} cx="50%" cy="50%" innerRadius={42} outerRadius={62} paddingAngle={2} dataKey="value">
+                    {funnelData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #ececec", background: "#fff", fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                {funnelData.map((d) => (
+                  <div key={d.status} className="flex items-center gap-2" style={{ fontSize: 10.5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: d.fill, flexShrink: 0 }} />
+                    <span style={{ color: "#2c4d46", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {d.name}
+                    </span>
+                    <span style={{ color: "#6b7e7a", fontWeight: 600 }}>{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </div>
+        </SectionCard>
       </div>
 
-      {/* Bottom row — funil + follow-ups */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Funil detalhado */}
-        {funnelData.length > 0 && (
-          <div className="card p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Funil de Vendas</h2>
-            <div className="space-y-3">
-              {funnelData.sort((a, b) => b.value - a.value).map(({ name, value, fill }) => (
-                <div key={name} className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ background: fill }} />
-                  <span className="text-sm text-gray-600 w-40 shrink-0">{name}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, (value / Math.max(stats?.totalLeads ?? 1, 1)) * 100)}%`,
-                        background: fill,
-                      }}
-                    />
+      {/* Row 3 — Funil detalhado + Follow-ups */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+        <SectionCard title="Funil detalhado" subtitle="leads por fase">
+          {funnelData.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-xs" style={{ color: "#a8b8b4" }}>Sem dados</div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {funnelData.sort((a, b) => b.value - a.value).map((d) => {
+                const pct = (d.value / funnelMax) * 100;
+                return (
+                  <div key={d.status} className="grid items-center gap-2.5" style={{ gridTemplateColumns: "110px 1fr 32px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#2c4d46" }}>{d.name}</span>
+                    <div style={{ height: 22, background: "#f4f5f5", borderRadius: 999, overflow: "hidden", position: "relative" }}>
+                      <div style={{
+                        height: "100%", width: `${pct}%`, background: d.soft, borderRadius: 999,
+                        transition: "width 300ms ease", position: "relative",
+                      }}>
+                        <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
+                          width: 4, height: 4, borderRadius: "50%", background: d.fill }} />
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: d.ink, textAlign: "right" }}>{d.value}</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-700 w-6 text-right">{value}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </div>
-        )}
+          )}
+        </SectionCard>
 
-        {/* Follow-ups de hoje */}
         <FollowUpWidget leads={stats?.followUpsToday ?? []} />
       </div>
     </div>
   );
 }
 
+// ─── Follow-ups widget ───────────────────────────────────────────────────────
 function FollowUpWidget({ leads }: { leads: FollowUpLead[] }) {
   const navigate = useNavigate();
   const overdue = leads.filter((l) => l.followUpAt && isPast(parseISO(l.followUpAt)) && !isToday(parseISO(l.followUpAt)));
-  const today = leads.filter((l) => l.followUpAt && isToday(parseISO(l.followUpAt)));
+  const today   = leads.filter((l) => l.followUpAt && isToday(parseISO(l.followUpAt)));
+  const upcoming = leads.filter((l) => l.followUpAt && !isPast(parseISO(l.followUpAt)) && !isToday(parseISO(l.followUpAt)));
 
-  return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Calendar size={15} className="text-orange-500" />
-          Follow-ups
-        </h2>
-        {leads.length > 0 && (
-          <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">
-            {leads.length} pendente{leads.length !== 1 ? "s" : ""}
+  const renderItem = (lead: FollowUpLead, accent: string, soft: string, ink: string, badge: string) => (
+    <button
+      key={lead.id}
+      onClick={() => navigate(`/leads/${lead.id}`)}
+      className="text-left w-full"
+      style={{
+        display: "flex", alignItems: "stretch", gap: 10,
+        borderRadius: 14, border: "1px solid #ececec", overflow: "hidden",
+        background: "white", cursor: "pointer",
+      }}
+    >
+      <div style={{ width: 3, background: accent, flexShrink: 0 }} />
+      <div style={{ flex: 1, padding: "10px 12px 10px 0", minWidth: 0 }}>
+        <div className="flex items-center justify-between gap-2">
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#2c4d46", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {lead.name}
           </span>
+          <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: soft, color: ink, flexShrink: 0 }}>
+            {badge}
+          </span>
+        </div>
+        {lead.followUpNote && (
+          <p style={{ margin: "3px 0 0", fontSize: 10.5, color: "#6b7e7a", lineHeight: 1.4,
+            display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {lead.followUpNote}
+          </p>
+        )}
+        {lead.telegramUsername && (
+          <p style={{ margin: "3px 0 0", fontSize: 9.5, color: "#a8b8b4", display: "flex", alignItems: "center", gap: 4 }}>
+            <Send size={9} />@{lead.telegramUsername}
+          </p>
         )}
       </div>
+    </button>
+  );
 
+  return (
+    <SectionCard
+      title="Follow-ups"
+      subtitle="prioridades"
+      action={
+        leads.length > 0 ? (
+          <span style={{
+            fontSize: 9.5, fontWeight: 700, padding: "3px 8px", borderRadius: 999,
+            background: overdue.length ? "#fadbd8" : "#d4f0e2",
+            color: overdue.length ? "#7f1d1d" : "#065f46",
+          }}>
+            {overdue.length ? `${overdue.length} em atraso` : `${leads.length} pendentes`}
+          </span>
+        ) : null
+      }
+    >
       {leads.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
-          <Calendar size={28} className="mx-auto mb-2 opacity-30" />
+        <div className="text-center py-6" style={{ color: "#a8b8b4" }}>
+          <Calendar size={28} className="mx-auto mb-2 opacity-50" />
           <p className="text-xs">Sem follow-ups agendados</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-3.5">
           {overdue.length > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium mb-1">
-              <AlertCircle size={12} />
-              {overdue.length} em atraso
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5" style={{ fontSize: 9.5, fontWeight: 700, color: "#7f1d1d", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                <AlertCircle size={11} /> Em atraso
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {overdue.map((l) => renderItem(l, "#ef4444", "#fadbd8", "#7f1d1d",
+                  format(parseISO(l.followUpAt), "d MMM", { locale: pt })))}
+              </div>
             </div>
           )}
-          {leads.slice(0, 6).map((lead) => {
-            const isOverdue = isPast(parseISO(lead.followUpAt)) && !isToday(parseISO(lead.followUpAt));
-            return (
-              <button
-                key={lead.id}
-                onClick={() => navigate(`/leads/${lead.id}`)}
-                className="w-full text-left flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5"
-                  style={{ background: isOverdue ? "#e74c3c" : "#e67e22" }}
-                >
-                  {(lead.name?.[0] ?? "?").toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-800 truncate">{lead.name}</span>
-                    <span className={`text-[10px] shrink-0 font-medium ${isOverdue ? "text-red-500" : "text-orange-500"}`}>
-                      {isToday(parseISO(lead.followUpAt))
-                        ? "hoje"
-                        : format(parseISO(lead.followUpAt), "d MMM", { locale: pt })}
-                    </span>
-                  </div>
-                  {lead.followUpNote && (
-                    <p className="text-[11px] text-gray-500 truncate mt-0.5">{lead.followUpNote}</p>
-                  )}
-                  {lead.telegramUsername && (
-                    <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                      <Send size={9} />@{lead.telegramUsername}
-                    </p>
-                  )}
-                </div>
-              </button>
-            );
-          })}
+          {today.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                Hoje
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {today.map((l) => renderItem(l, "#10b981", "#d4f0e2", "#065f46", "hoje"))}
+              </div>
+            </div>
+          )}
+          {upcoming.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6b7e7a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                Próximos
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {upcoming.slice(0, 4).map((l) => renderItem(l, "#94a8a3", "#eef0ef", "#2c4d46",
+                  format(parseISO(l.followUpAt), "d MMM", { locale: pt })))}
+              </div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }
