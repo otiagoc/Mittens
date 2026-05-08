@@ -585,10 +585,14 @@ router.patch("/property-alerts/:id", authMiddleware, async (c) => {
     active: boolean;
   }>>();
 
-  if (body.minPrice !== undefined && body.maxPrice !== undefined && body.minPrice > body.maxPrice) {
+  const patchMinPrice = body.minPrice ?? null;
+  const patchMaxPrice = body.maxPrice ?? null;
+  if (patchMinPrice !== null && patchMaxPrice !== null && patchMinPrice > patchMaxPrice) {
     return c.json({ error: "Preço mínimo não pode ser superior ao máximo" }, 400);
   }
-  if (body.minArea !== undefined && body.maxArea !== undefined && body.minArea > body.maxArea) {
+  const patchMinArea = body.minArea ?? null;
+  const patchMaxArea = body.maxArea ?? null;
+  if (patchMinArea !== null && patchMaxArea !== null && patchMinArea > patchMaxArea) {
     return c.json({ error: "Área mínima não pode ser superior à máxima" }, 400);
   }
 

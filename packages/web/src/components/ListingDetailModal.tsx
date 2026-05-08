@@ -180,7 +180,7 @@ export function ListingDetailModal({
                       disabled={safeIdx === 0}
                       className="absolute left-2 top-1/2 -translate-y-1/2 transition-opacity disabled:opacity-20"
                       style={{ background: "rgba(255,255,255,0.9)", padding: "4px", borderRadius: "3px" }}
-                      onMouseEnter={(e) => !(!safeIdx === 0) && (e.currentTarget.style.background = "white")}
+                      onMouseEnter={(e) => safeIdx !== 0 && (e.currentTarget.style.background = "white")}
                       onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.9)"}
                     >
                       <ChevronLeft size={14} />

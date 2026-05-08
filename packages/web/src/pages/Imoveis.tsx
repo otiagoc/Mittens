@@ -108,6 +108,9 @@ export function Imoveis() {
       invalidate();
       setEditingAlert(null);
     },
+    onError: (err: Error) => {
+      alert(`Erro ao guardar: ${err.message}`);
+    },
   });
 
   const filtered = listings.filter((l) => {
