@@ -38,33 +38,35 @@ function ProtectedLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      <SSEProvider />
-      <Sidebar />
-      <main
-        className="flex-1 overflow-y-auto"
-        style={{
-          background: "var(--bg)",
-          paddingTop: "env(safe-area-inset-top)",
-          paddingBottom: "var(--bottom-nav-pad)",
-        }}
-      >
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/inbox" element={<Inbox />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/leads/:id" element={<LeadDetail />} />
-          <Route path="/pipeline" element={<Kanban />} />
-          <Route path="/kanban" element={<Navigate to="/pipeline" replace />} />
-          <Route path="/agents" element={<Agents />} />
-          <Route path="/agents/:id/chat" element={<AgentChat />} />
-          <Route path="/imoveis" element={<Imoveis />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+    <>
+      <div className="flex h-screen overflow-hidden bg-white">
+        <SSEProvider />
+        <Sidebar />
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{
+            background: "var(--bg)",
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "var(--bottom-nav-pad)",
+          }}
+        >
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/inbox" element={<Inbox />} />
+            <Route path="/leads" element={<Leads />} />
+            <Route path="/leads/:id" element={<LeadDetail />} />
+            <Route path="/pipeline" element={<Kanban />} />
+            <Route path="/kanban" element={<Navigate to="/pipeline" replace />} />
+            <Route path="/agents" element={<Agents />} />
+            <Route path="/agents/:id/chat" element={<AgentChat />} />
+            <Route path="/imoveis" element={<Imoveis />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
       <BottomNav />
-    </div>
+    </>
   );
 }
 
