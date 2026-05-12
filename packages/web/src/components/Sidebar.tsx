@@ -26,7 +26,7 @@ export function Sidebar() {
   return (
     <aside
       style={{ background: "var(--sidebar-bg)" }}
-      className={`${collapsed ? "w-[70px]" : "w-[240px]"} shrink-0 min-h-screen flex flex-col transition-all duration-200 relative`}
+      className={`${collapsed ? "w-[70px]" : "w-[240px]"} shrink-0 min-h-screen hidden md:flex flex-col transition-all duration-200 relative`}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-6" style={{ borderBottom: "1px solid rgba(255,255,255,0.15)" }}>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
@@ -28,74 +28,152 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#2c4d46" }}>
-      <div className="w-full max-w-sm">
-        {/* Logo Section */}
-        <div className="flex flex-col items-center mb-12">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6"
+      style={{ background: "#f7f9f8" }}
+    >
+      {/* Decorative blob */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          top: "-120px",
+          right: "-100px",
+          width: "380px",
+          height: "380px",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, #c8dcd8 0%, #e8efed 60%, transparent 100%)",
+          opacity: 0.5,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          bottom: "-80px",
+          left: "-60px",
+          width: "260px",
+          height: "260px",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, #c8dcd8 0%, #e8efed 60%, transparent 100%)",
+          opacity: 0.35,
+          pointerEvents: "none",
+        }}
+      />
+
+      <div className="relative w-full max-w-xs flex flex-col gap-10">
+
+        {/* Brand */}
+        <div className="flex flex-col items-center gap-4">
           <div
-            className="flex items-center justify-center w-14 h-14 rounded-sm mb-6"
-            style={{ background: "rgba(255,255,255,0.1)" }}
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 20,
+              background: "#2c4d46",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 32px rgba(44,77,70,0.25)",
+            }}
           >
-            <svg width="28" height="28" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 18V4L11 13L20 4V18" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="28" height="28" viewBox="0 0 22 22" fill="none">
+              <path d="M2 18V4L11 13L20 4V18" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
           <div className="text-center">
-            <h1
-              className="text-white uppercase font-light text-2xl tracking-wider"
+            <p
+              style={{
+                fontSize: 26,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                color: "#1a1a1a",
+                margin: 0,
+                lineHeight: 1,
+              }}
             >
-              <span className="font-bold">MITTENS</span>
-            </h1>
-            <div className="w-8 h-px mx-auto mt-3 mb-2" style={{ background: "rgba(255,255,255,0.4)" }} />
-            <p className="text-xs text-white/70 tracking-wide uppercase font-medium">Property Consultants</p>
+              Mittens
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#8bb5a8",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                marginTop: 6,
+              }}
+            >
+              Property Consultants
+            </p>
           </div>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-xs font-bold mb-2 uppercase tracking-wide text-white/90">
-              Senha
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="input w-full"
-                style={{
-                  background: "rgba(255,255,255,0.95)",
-                  borderColor: "rgba(255,255,255,0.3)",
-                  color: "#1a1a1a"
-                }}
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                style={{ color: "#5a5a5a" }}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {/* Password input */}
+          <div
+            className="flex items-center gap-3 px-4"
+            style={{
+              background: "white",
+              borderRadius: 16,
+              border: error ? "1.5px solid #f87171" : "1.5px solid #e2e8e6",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+              height: 56,
+              transition: "border-color 0.15s",
+            }}
+            onFocus={() => {}}
+          >
+            <Lock size={16} style={{ color: "#8bb5a8", flexShrink: 0 }} />
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              placeholder="Password"
+              autoFocus
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: 15,
+                color: "#1a1a1a",
+                fontFamily: "inherit",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{ color: "#adc5c0", flexShrink: 0, lineHeight: 0 }}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
           {error && (
-            <p className="text-xs font-medium" style={{ color: "#e74c3c" }}>
+            <p style={{ fontSize: 12, color: "#ef4444", paddingLeft: 4 }}>
               {error}
             </p>
           )}
 
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading || !password}
-            className="btn-primary w-full justify-center"
             style={{
-              opacity: loading || !password ? 0.6 : 1,
-              background: "rgba(232, 239, 237, 0.95)",
-              color: "#2c4d46"
+              height: 56,
+              borderRadius: 16,
+              background: password && !loading ? "#2c4d46" : "#94b5ae",
+              color: "white",
+              border: "none",
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              cursor: password && !loading ? "pointer" : "default",
+              transition: "background 0.2s",
+              marginTop: 4,
             }}
           >
             {loading ? "A entrar..." : "Entrar"}
@@ -103,11 +181,12 @@ export function Login() {
         </form>
 
         {/* Footer */}
-        <div className="mt-10 text-center">
-          <p className="text-xs text-white/50 tracking-wide">
-            Nº1 da Europa em Agentes IA Imobiliários
-          </p>
-        </div>
+        <p
+          className="text-center"
+          style={{ fontSize: 11, color: "#b0c4c0", letterSpacing: "0.04em" }}
+        >
+          Nº1 da Europa em Agentes IA Imobiliários
+        </p>
       </div>
     </div>
   );

@@ -151,82 +151,95 @@ export function Imoveis() {
   }, {});
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-4 md:space-y-8">
       {/* Header */}
       <div className="page-header">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Home size={20} style={{ color: "#2c4d46" }} />
-            Imóveis
-          </h1>
-          <p className="page-subtitle">
-            {counts.all} anúncios
-            {counts.new > 0 && (
-              <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wide rounded-sm" style={{ color: "#2c4d46", background: "#e8efed" }}>
-                {counts.new} novos
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <FilterPill active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
-              Todos
-            </FilterPill>
-            <FilterPill active={filter === "new"} onClick={() => setFilter("new")} count={counts.new}>
-              Novos
-            </FilterPill>
-            <FilterPill active={filter === "favorites"} onClick={() => setFilter("favorites")} count={counts.favorites}>
-              Favoritos
-            </FilterPill>
-            <FilterPill active={filter === "hidden"} onClick={() => setFilter("hidden")} count={counts.hidden} variant="hidden">
-              Escondidos
-            </FilterPill>
+        <div className="flex items-center justify-between w-full gap-2">
+          <div>
+            <h1 className="page-title flex items-center gap-2">
+              <Home size={20} style={{ color: "#2c4d46" }} />
+              Imóveis
+            </h1>
+            <p className="page-subtitle">
+              {counts.all} anúncios
+              {counts.new > 0 && (
+                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wide rounded-sm" style={{ color: "#2c4d46", background: "#e8efed" }}>
+                  {counts.new} novos
+                </span>
+              )}
+            </p>
           </div>
-          <div className="flex items-center gap-0.5 pl-1.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.15)" }}>
+          {/* Desktop-only actions */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-0.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.15)", paddingLeft: "6px" }}>
+              <button
+                onClick={() => setViewMode("icon")}
+                className="p-1.5 rounded-lg border transition-colors"
+                style={{
+                  background: viewMode === "icon" ? "#2c4d46" : "white",
+                  color: viewMode === "icon" ? "white" : "#2c4d46",
+                  borderColor: viewMode === "icon" ? "#2c4d46" : "#d0d0d0"
+                }}
+                title="Visualização ícone"
+              >
+                <Home size={10} />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className="p-1.5 rounded-lg border transition-colors"
+                style={{
+                  background: viewMode === "list" ? "#2c4d46" : "white",
+                  color: viewMode === "list" ? "white" : "#2c4d46",
+                  borderColor: viewMode === "list" ? "#2c4d46" : "#d0d0d0"
+                }}
+                title="Visualização lista"
+              >
+                <List size={10} />
+              </button>
+            </div>
             <button
-              onClick={() => setViewMode("icon")}
+              onClick={() => refetch()}
               className="p-1.5 rounded-lg border transition-colors"
-              style={{
-                background: viewMode === "icon" ? "#2c4d46" : "white",
-                color: viewMode === "icon" ? "white" : "#2c4d46",
-                borderColor: viewMode === "icon" ? "#2c4d46" : "#d0d0d0"
-              }}
-              title="Visualização ícone"
+              style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white" }}
+              title="Atualizar"
             >
-              <Home size={10} />
+              <RefreshCw size={10} />
             </button>
             <button
-              onClick={() => setViewMode("list")}
-              className="p-1.5 rounded-lg border transition-colors"
-              style={{
-                background: viewMode === "list" ? "#2c4d46" : "white",
-                color: viewMode === "list" ? "white" : "#2c4d46",
-                borderColor: viewMode === "list" ? "#2c4d46" : "#d0d0d0"
-              }}
-              title="Visualização lista"
+              onClick={() => dedupPreviewMutation.mutate()}
+              disabled={dedupPreviewMutation.isPending || dedupConfirmMutation.isPending}
+              className="px-2 py-1 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1"
+              style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white", opacity: dedupPreviewMutation.isPending ? 0.6 : 1 }}
+              title="Pré-visualizar duplicados antes de apagar"
             >
-              <List size={10} />
+              {dedupPreviewMutation.isPending ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
+              Deduplicar
             </button>
           </div>
+          {/* Mobile-only refresh */}
           <button
             onClick={() => refetch()}
-            className="p-1.5 rounded-lg border transition-colors"
+            className="md:hidden p-1.5 rounded-lg border transition-colors"
             style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white" }}
             title="Atualizar"
           >
-            <RefreshCw size={10} />
+            <RefreshCw size={14} />
           </button>
-          <button
-            onClick={() => dedupPreviewMutation.mutate()}
-            disabled={dedupPreviewMutation.isPending || dedupConfirmMutation.isPending}
-            className="px-2 py-1 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1"
-            style={{ color: "#2c4d46", borderColor: "#d0d0d0", background: "white", opacity: dedupPreviewMutation.isPending ? 0.6 : 1 }}
-            title="Pré-visualizar duplicados antes de apagar"
-          >
-            {dedupPreviewMutation.isPending ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
-            Deduplicar
-          </button>
+        </div>
+        {/* Filter pills row — scrollable on mobile */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 w-full" style={{ scrollbarWidth: "none" }}>
+          <FilterPill active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
+            Todos
+          </FilterPill>
+          <FilterPill active={filter === "new"} onClick={() => setFilter("new")} count={counts.new}>
+            Novos
+          </FilterPill>
+          <FilterPill active={filter === "favorites"} onClick={() => setFilter("favorites")} count={counts.favorites}>
+            Favoritos
+          </FilterPill>
+          <FilterPill active={filter === "hidden"} onClick={() => setFilter("hidden")} count={counts.hidden} variant="hidden">
+            Escondidos
+          </FilterPill>
         </div>
       </div>
 

@@ -76,7 +76,7 @@ export function Kanban() {
   }
 
   return (
-    <div className="p-5 flex flex-col h-full">
+    <div className="p-3 md:p-5 flex flex-col h-full">
       <div className="page-header">
         <div>
           <h1 className="page-title">Pipeline</h1>

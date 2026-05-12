@@ -144,7 +144,7 @@ export function Dashboard() {
   const greeting = today.getHours() < 12 ? "Bom dia" : today.getHours() < 19 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div className="p-6 space-y-4" style={{ background: "#fafafa", minHeight: "100%" }}>
+    <div className="p-3 md:p-6 space-y-4" style={{ background: "#fafafa", minHeight: "100%" }}>
       {/* Header */}
       <div className="flex justify-between items-end mb-2">
         <div>

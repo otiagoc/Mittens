@@ -181,7 +181,7 @@
 
   /* Page Layout */
   .page-header {
-    @apply flex items-center justify-between mb-8 pb-6;
+    @apply flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 md:mb-8 md:pb-6;
     border-bottom: 1px solid var(--line);
   }
 
@@ -226,5 +226,12 @@
   .divider-accent {
     @apply w-full h-1;
     background: var(--brand-primary);
+  }
+}
+
+/* Em dispositivos touch (sem hover real), mostrar sempre as acções que dependem de hover */
+@media (hover: none) {
+  .group .group-hover\:opacity-100 {
+    opacity: 1 !important;
   }
 }

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useAuthStore } from "@/store/auth";
 import { Sidebar } from "@/components/Sidebar";
+import { BottomNav } from "@/components/BottomNav";
 import { SSEProvider } from "@/components/SSEProvider";
 import { Login } from "@/pages/Login";
 import { Dashboard } from "@/pages/Dashboard";
@@ -40,7 +41,7 @@ function ProtectedLayout() {
     <div className="flex h-screen overflow-hidden bg-white">
       <SSEProvider />
       <Sidebar />
-      <main className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/inbox" element={<Inbox />} />
@@ -55,6 +56,7 @@ function ProtectedLayout() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <BottomNav />
     </div>
   );
 }

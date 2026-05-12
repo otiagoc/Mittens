@@ -4,7 +4,7 @@ import { conversationsApi, leadsApi, type Conversation, type Message } from "@/l
 import { LeadStatusBadge, ALL_STATUSES } from "@/components/LeadStatusBadge";
 import { formatDistanceToNow, format, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
-import { MessageSquare, Phone, Mail, Send, Search, Brain, Calendar, FileText, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { MessageSquare, Phone, Mail, Send, Search, Brain, Calendar, FileText, ChevronDown, ChevronUp, Trash2, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Inbox() {
@@ -75,7 +75,7 @@ export function Inbox() {
   return (
     <div className="flex h-full">
       {/* ── Coluna 1: Lista de conversas ─────────────────────────────── */}
-      <div className="w-72 border-r border-gray-100 flex flex-col bg-white">
+      <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-72 border-r border-gray-100 flex-col bg-white`}>
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h1 className="font-semibold text-gray-800">Inbox</h1>
@@ -114,7 +114,7 @@ export function Inbox() {
       </div>
 
       {/* ── Coluna 2: Mensagens ──────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      <div className={`${selected ? "flex" : "hidden md:flex"} flex-1 flex-col bg-gray-50`}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-gray-400">
@@ -125,7 +125,13 @@ export function Inbox() {
         ) : activeConv ? (
           <>
             {/* Header */}
-            <div className="px-5 py-3 bg-white border-b border-gray-100 flex items-center gap-3">
+            <div className="px-3 md:px-5 py-3 bg-white border-b border-gray-100 flex items-center gap-2 md:gap-3">
+              <button
+                onClick={() => setSelected(null)}
+                className="md:hidden p-1 rounded-lg transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-100 shrink-0"
+              >
+                <ChevronLeft size={18} />
+              </button>
               <Avatar name={activeConv.lead?.name ?? activeConv.telegramFirstName ?? "?"} size="md" />
               <div className="flex-1">
                 <div className="font-semibold text-sm text-gray-800">
@@ -190,7 +196,7 @@ export function Inbox() {
       </div>
 
       {/* ── Coluna 3: Info do lead ────────────────────────────────────── */}
-      <div className="w-64 border-l border-gray-100 bg-white flex flex-col">
+      <div className="hidden md:flex w-64 border-l border-gray-100 bg-white flex-col">
         {activeConv?.lead ? (
           <LeadPanel leadId={activeConv.lead.id} onDeleted={() => setSelected(null)} />
         ) : (

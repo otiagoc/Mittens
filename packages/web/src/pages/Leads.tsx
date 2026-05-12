@@ -22,7 +22,7 @@ export function Leads() {
   });
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div className="page-header">
         <div>
           <h1 className="page-title">Leads</h1>
@@ -39,7 +39,7 @@ export function Leads() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#8bb5a8" }} />
           <input
@@ -62,7 +62,8 @@ export function Leads() {
       </div>
 
       {/* Tabela */}
-      <div className="card rounded-sm overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
+      <div className="card rounded-sm overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px", padding: 0 }}>
+      <div className="overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-slate-500">A carregar...</div>
         ) : !data?.data.length ? (
@@ -90,6 +91,7 @@ export function Leads() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
 
       {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} />}
@@ -208,7 +210,7 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 p-4 md:p-0">
       <div className="bg-white rounded-sm w-full max-w-md p-6 space-y-4" style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
         <h2 className="font-semibold" style={{ color: "#2c4d46" }}>Novo Lead</h2>
 
