@@ -1,0 +1,18 @@
+{
+  "name": "Mittens CRM",
+  "short_name": "Mittens",
+  "description": "Property Consultants CRM",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f9f8",
+  "theme_color": "#2c4d46",
+  "icons": [
+    {
+      "src": "/mittens.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
