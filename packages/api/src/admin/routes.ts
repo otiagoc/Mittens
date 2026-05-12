@@ -873,4 +873,25 @@ router.post("/push/subscribe", authMiddleware, async (c) => {
   return c.json({ ok: true });
 });
 
+router.get("/push/subscriptions", authMiddleware, async (c) => {
+  const { db } = await import("../db/client.js");
+  const { pushSubscriptions } = await import("../db/schema.js");
+  const subs = await db.select().from(pushSubscriptions);
+  return c.json({ count: subs.length, endpoints: subs.map(s => s.endpoint.slice(0, 60) + "...") });
+});
+
+router.post("/push/test", authMiddleware, async (c) => {
+  const { sendPushToAll } = await import("./push.js");
+  try {
+    await sendPushToAll({
+      title: "🏠 Mittens — Teste",
+      body: "Notificações push estão a funcionar!",
+      url: "/imoveis",
+    });
+    return c.json({ ok: true });
+  } catch (err) {
+    return c.json({ error: String(err) }, 500);
+  }
+});
+
 export { router as adminRoutes };
