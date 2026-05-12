@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { fetchPublicShare } from "@/lib/api";
-import { ChevronLeft, ChevronRight, MapPin, Mail, Phone, Home } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Mail, Phone, Home, Maximize2, X, Bed, Bath, Ruler } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export function PublicShare() {
   const { token } = useParams<{ token: string }>();
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["public-share", token],
@@ -18,25 +19,29 @@ export function PublicShare() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") setPhotoIdx((i) => Math.max(0, i - 1));
-      if (e.key === "ArrowRight") setPhotoIdx((i) => i + 1);
+      if (e.key === "ArrowRight" && data) {
+        const images = data.detail?.images ?? [];
+        setPhotoIdx((i) => Math.min(images.length - 1, i + 1));
+      }
+      if (e.key === "Escape") setLightbox(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [data]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-400 text-sm">A carregar imóvel...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#f7f8f9" }}>
+        <p className="text-sm" style={{ color: "#8bb5a8" }}>A carregar imóvel...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <Home size={48} className="mx-auto opacity-30 mb-3" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#f7f8f9" }}>
+        <div className="text-center" style={{ color: "#8bb5a8" }}>
+          <Home size={40} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm">Esta partilha não existe ou expirou.</p>
         </div>
       </div>
@@ -46,189 +51,287 @@ export function PublicShare() {
   const { detail, listing, profile } = data;
   const images = detail?.images ?? [];
   const safeIdx = Math.min(photoIdx, Math.max(0, images.length - 1));
+  const price = detail?.price ?? listing.price;
+  const area = detail?.area ?? listing.area;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header com perfil do agente */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
+    <div className="min-h-screen" style={{ background: "#f7f8f9", fontFamily: "Montserrat, sans-serif" }}>
+
+      {/* Header */}
+      <header style={{ background: "#2c4d46", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+        <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {profile.photoUrl ? (
-              <img src={profile.photoUrl} alt={profile.name ?? ""} className="w-10 h-10 rounded-full object-cover" />
+              <img src={profile.photoUrl} alt={profile.name ?? ""} className="w-9 h-9 rounded-full object-cover ring-2 ring-white/20" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: "rgba(255,255,255,0.2)", color: "white" }}>
                 {profile.name?.[0] ?? "M"}
               </div>
             )}
             <div>
-              <p className="text-sm font-semibold text-gray-800">{profile.name ?? "Agente Imobiliário"}</p>
-              {profile.agency && <p className="text-xs text-gray-500">{profile.agency}</p>}
+              <p className="text-sm font-semibold text-white leading-tight">{profile.name ?? "Agente Imobiliário"}</p>
+              {profile.agency && <p className="text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>{profile.agency}</p>}
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-3 text-sm text-gray-600">
+          <div className="hidden md:flex items-center gap-4">
             {profile.phone && (
-              <a href={`tel:${profile.phone}`} className="flex items-center gap-1.5 hover:text-blue-500">
-                <Phone size={14} /> {profile.phone}
+              <a href={`tel:${profile.phone}`} className="flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.9)" }}>
+                <Phone size={13} /> {profile.phone}
               </a>
             )}
             {profile.email && (
-              <a href={`mailto:${profile.email}`} className="flex items-center gap-1.5 hover:text-blue-500">
-                <Mail size={14} /> {profile.email}
+              <a href={`mailto:${profile.email}`} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg font-medium transition-opacity hover:opacity-80" style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
+                <Mail size={12} /> Email
               </a>
             )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-5 space-y-5">
-        {/* Galeria */}
-        {images.length > 0 && (
-          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-            <div className="relative bg-gray-100 aspect-[16/9]">
-              <img src={images[safeIdx]} alt={`Foto ${safeIdx + 1}`} className="w-full h-full object-cover" />
-              {images.length > 1 && (
-                <>
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        {/* Título + morada — acima do grid */}
+        <div className="mb-4">
+          <h1 className="text-xl font-bold leading-snug" style={{ color: "#1a2e2a" }}>
+            {detail?.title ?? listing.title ?? "Imóvel"}
+          </h1>
+          {detail?.address && (
+            <p className="flex items-center gap-1.5 text-sm mt-1" style={{ color: "#6b7e7a" }}>
+              <MapPin size={13} /> {detail.address}
+            </p>
+          )}
+        </div>
+
+        {/* Grid principal: galeria + sidebar */}
+        <div className="flex gap-5 items-start">
+
+          {/* Coluna esquerda — galeria + detalhes */}
+          <div className="flex-1 min-w-0 space-y-4">
+
+            {/* Galeria */}
+            {images.length > 0 && (
+              <div className="rounded-2xl overflow-hidden" style={{ background: "#e8efed" }}>
+                <div className="relative aspect-[16/10] bg-gray-100">
+                  <img
+                    src={images[safeIdx]}
+                    alt={`Foto ${safeIdx + 1}`}
+                    className="w-full h-full object-cover cursor-zoom-in"
+                    onClick={() => setLightbox(true)}
+                  />
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setPhotoIdx((i) => Math.max(0, i - 1))}
+                        disabled={safeIdx === 0}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full shadow-md transition-opacity disabled:opacity-20"
+                        style={{ background: "white" }}
+                      >
+                        <ChevronLeft size={16} style={{ color: "#2c4d46" }} />
+                      </button>
+                      <button
+                        onClick={() => setPhotoIdx((i) => Math.min(images.length - 1, i + 1))}
+                        disabled={safeIdx === images.length - 1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full shadow-md transition-opacity disabled:opacity-20"
+                        style={{ background: "white" }}
+                      >
+                        <ChevronRight size={16} style={{ color: "#2c4d46" }} />
+                      </button>
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(0,0,0,0.55)", color: "white" }}>
+                        {safeIdx + 1} / {images.length}
+                      </div>
+                    </>
+                  )}
                   <button
-                    onClick={() => setPhotoIdx((i) => Math.max(0, i - 1))}
-                    disabled={safeIdx === 0}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg disabled:opacity-30"
+                    onClick={() => setLightbox(true)}
+                    className="absolute top-3 right-3 p-2 rounded-lg shadow-sm transition-opacity hover:opacity-80"
+                    style={{ background: "white" }}
+                    title="Ver em ecrã inteiro"
                   >
-                    <ChevronLeft size={18} />
+                    <Maximize2 size={14} style={{ color: "#2c4d46" }} />
                   </button>
-                  <button
-                    onClick={() => setPhotoIdx((i) => Math.min(images.length - 1, i + 1))}
-                    disabled={safeIdx === images.length - 1}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg disabled:opacity-30"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">
-                    {safeIdx + 1} / {images.length}
+                </div>
+
+                {/* Thumbnails */}
+                {images.length > 1 && (
+                  <div className="flex gap-1.5 overflow-x-auto p-2.5" style={{ background: "#f0f5f3" }}>
+                    {images.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPhotoIdx(i)}
+                        className={cn(
+                          "shrink-0 w-18 h-12 rounded-lg overflow-hidden border-2 transition-all",
+                          i === safeIdx ? "opacity-100" : "opacity-50 hover:opacity-80"
+                        )}
+                        style={{ borderColor: i === safeIdx ? "#2c4d46" : "transparent", width: 72, height: 48 }}
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Características rápidas (pills) */}
+            {(detail?.bedrooms != null || area || detail?.bathrooms != null) && (
+              <div className="flex flex-wrap gap-2">
+                {detail?.bedrooms != null && (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold" style={{ background: "white", color: "#2c4d46", border: "1px solid #e8efed" }}>
+                    <Bed size={14} style={{ color: "#8bb5a8" }} /> T{detail.bedrooms}
+                  </div>
+                )}
+                {area && (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold" style={{ background: "white", color: "#2c4d46", border: "1px solid #e8efed" }}>
+                    <Ruler size={14} style={{ color: "#8bb5a8" }} /> {area} m²
+                  </div>
+                )}
+                {detail?.bathrooms != null && (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold" style={{ background: "white", color: "#2c4d46", border: "1px solid #e8efed" }}>
+                    <Bath size={14} style={{ color: "#8bb5a8" }} /> {detail.bathrooms} WC
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Descrição */}
+            {detail?.description && (
+              <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #ececec" }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#8bb5a8" }}>Descrição</h3>
+                <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#4a5e5a" }}>{detail.description}</p>
+              </div>
+            )}
+
+            {/* Características detalhadas */}
+            {detail && detail.characteristics.length > 0 && (
+              <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #ececec" }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#8bb5a8" }}>Características</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {detail.characteristics.map((c, i) => (
+                    <div key={i} className="px-3 py-2 rounded-xl" style={{ background: "#f7f8f9", border: "1px solid #ececec" }}>
+                      <p className="text-[10px] uppercase font-semibold tracking-wide mb-0.5" style={{ color: "#8bb5a8" }}>{c.label}</p>
+                      <p className="text-sm font-medium" style={{ color: "#2c4d46" }}>{c.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar direita — preço + agente */}
+          <div className="w-72 shrink-0 space-y-3 sticky top-4">
+
+            {/* Card de preço */}
+            <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #ececec" }}>
+              {price && (
+                <>
+                  <p className="text-2xl font-bold leading-tight" style={{ color: "#2c4d46" }}>
+                    {price.toLocaleString("pt-PT")} €
+                  </p>
+                  {detail?.pricePerM2 && (
+                    <p className="text-xs mt-0.5" style={{ color: "#8bb5a8" }}>{detail.pricePerM2.toLocaleString("pt-PT")} €/m²</p>
+                  )}
+                  <div className="my-3 h-px" style={{ background: "#f0f2f1" }} />
                 </>
               )}
-            </div>
-            {images.length > 1 && (
-              <div className="flex gap-1.5 overflow-x-auto p-2 bg-gray-50">
-                {images.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPhotoIdx(i)}
-                    className={cn(
-                      "shrink-0 w-20 h-14 rounded overflow-hidden border-2 transition-all",
-                      i === safeIdx ? "border-blue-500" : "border-transparent opacity-60 hover:opacity-100"
-                    )}
-                  >
-                    <img src={img} alt={`thumb ${i}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
+
+              {/* Mini specs */}
+              <div className="flex gap-4 text-xs font-semibold" style={{ color: "#6b7e7a" }}>
+                {detail?.bedrooms != null && <span>T{detail.bedrooms}</span>}
+                {area && <span>{area} m²</span>}
+                {detail?.bathrooms != null && <span>{detail.bathrooms} WC</span>}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Info principal */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{detail?.title ?? listing.title ?? "Imóvel"}</h1>
-            {detail?.address && (
-              <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-                <MapPin size={14} /> {detail.address}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-baseline justify-between flex-wrap gap-3 pb-4 border-b border-gray-100">
-            <div>
-              {(detail?.price ?? listing.price) && (
-                <p className="text-3xl font-bold text-gray-900">
-                  {(detail?.price ?? listing.price)!.toLocaleString("pt-PT")} €
-                </p>
-              )}
-              {detail?.pricePerM2 && (
-                <p className="text-xs text-gray-400 mt-0.5">{detail.pricePerM2.toLocaleString("pt-PT")} €/m²</p>
-              )}
             </div>
-            <div className="flex items-center gap-5 text-base text-gray-600">
-              {detail?.bedrooms !== null && detail?.bedrooms !== undefined && (
-                <span><b className="text-gray-800">T{detail.bedrooms}</b></span>
-              )}
-              {(detail?.area ?? listing.area) && (
-                <span><b className="text-gray-800">{detail?.area ?? listing.area}</b> m²</span>
-              )}
-              {detail?.bathrooms !== null && detail?.bathrooms !== undefined && (
-                <span><b className="text-gray-800">{detail.bathrooms}</b> WC</span>
-              )}
-            </div>
-          </div>
 
-          {/* Características */}
-          {detail && detail.characteristics.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Características</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {detail.characteristics.map((c, i) => (
-                  <div key={i} className="text-sm border border-gray-100 rounded-lg px-3 py-2 bg-gray-50/50">
-                    <p className="text-[10px] uppercase text-gray-400 font-medium">{c.label}</p>
-                    <p className="text-gray-800">{c.value}</p>
+            {/* Card do agente */}
+            <div className="rounded-2xl p-5 space-y-4" style={{ background: "#2c4d46" }}>
+              <div className="flex items-center gap-3">
+                {profile.photoUrl ? (
+                  <img src={profile.photoUrl} alt={profile.name ?? ""} className="w-12 h-12 rounded-full object-cover ring-2 ring-white/20" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold" style={{ background: "rgba(255,255,255,0.2)", color: "white" }}>
+                    {profile.name?.[0] ?? "M"}
                   </div>
-                ))}
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{profile.name ?? "Agente"}</p>
+                  {profile.agency && <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.65)" }}>{profile.agency}</p>}
+                  {profile.amiLicense && <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>AMI {profile.amiLicense}</p>}
+                </div>
+              </div>
+
+              {profile.bio && (
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>{profile.bio}</p>
+              )}
+
+              <div className="space-y-2">
+                {profile.phone && (
+                  <a
+                    href={`tel:${profile.phone}`}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90"
+                    style={{ background: "white", color: "#2c4d46" }}
+                  >
+                    <Phone size={14} /> {profile.phone}
+                  </a>
+                )}
+                {profile.email && (
+                  <a
+                    href={`mailto:${profile.email}`}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+                    style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                  >
+                    <Mail size={13} /> Enviar email
+                  </a>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Descrição */}
-          {detail?.description && (
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Descrição</h3>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{detail.description}</p>
-            </div>
-          )}
-        </div>
-
-        {/* CTA agente */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl shadow-sm p-6">
-          <div className="flex items-center gap-4 mb-4">
-            {profile.photoUrl ? (
-              <img src={profile.photoUrl} alt={profile.name ?? ""} className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30" />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold">
-                {profile.name?.[0] ?? "M"}
-              </div>
-            )}
-            <div>
-              <p className="text-lg font-semibold">{profile.name ?? "Agente Imobiliário"}</p>
-              {profile.agency && <p className="text-sm text-white/80">{profile.agency}</p>}
-              {profile.amiLicense && <p className="text-xs text-white/60 mt-0.5">AMI {profile.amiLicense}</p>}
-            </div>
-          </div>
-
-          {profile.bio && <p className="text-sm text-white/90 mb-4">{profile.bio}</p>}
-
-          <div className="flex flex-wrap gap-2">
-            {profile.phone && (
-              <a
-                href={`tel:${profile.phone}`}
-                className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors"
-              >
-                <Phone size={14} /> {profile.phone}
-              </a>
-            )}
-            {profile.email && (
-              <a
-                href={`mailto:${profile.email}`}
-                className="flex items-center gap-2 bg-white/15 hover:bg-white/25 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-              >
-                <Mail size={14} /> Enviar email
-              </a>
-            )}
+            <p className="text-center text-[10px]" style={{ color: "#c0cbc8" }}>
+              Partilhado via Mittens
+            </p>
           </div>
         </div>
-
-        <p className="text-center text-xs text-gray-400 py-4">
-          Partilhado por {profile.name ?? "agente imobiliário"} · Mittens
-        </p>
       </main>
+
+      {/* Lightbox */}
+      {lightbox && images.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.92)" }}
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute top-4 right-4 p-2 rounded-full"
+            style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+          >
+            <X size={20} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setPhotoIdx((i) => Math.max(0, i - 1)); }}
+            disabled={safeIdx === 0}
+            className="absolute left-4 p-3 rounded-full disabled:opacity-20"
+            style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <img
+            src={images[safeIdx]}
+            alt=""
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); setPhotoIdx((i) => Math.min(images.length - 1, i + 1)); }}
+            disabled={safeIdx === images.length - 1}
+            className="absolute right-4 p-3 rounded-full disabled:opacity-20"
+            style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+          >
+            <ChevronRight size={22} />
+          </button>
+          <div className="absolute bottom-4 text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
+            {safeIdx + 1} / {images.length}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
