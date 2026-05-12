@@ -10,6 +10,7 @@ import { scheduleFollowUp, summarizeConversation, getFollowUpsToday } from "./fo
 import { sendTelegramMessage } from "../telegram/sender.js";
 import { scrapeAll } from "../properties/scraper.js";
 import { runAlert } from "../properties/alerts.js";
+import { saveSubscription, VAPID_PUBLIC } from "./push.js";
 import { deduplicateAlertListings, deduplicateAllListings } from "../properties/dedup.js";
 import { scrapeListingDetail } from "../properties/detail.js";
 import type { AgentMessage } from "../agents/types.js";
@@ -852,6 +853,24 @@ router.post("/leads/:id/property-alerts/test", authMiddleware, async (c) => {
     ownerType: body.ownerType,
   });
   return c.json({ count: listings.length, listings: listings.slice(0, 5) });
+});
+
+// ─── Push Notifications ───────────────────────────────────────────────────────
+
+router.get("/push/vapid-key", (c) => {
+  return c.json({ publicKey: VAPID_PUBLIC });
+});
+
+router.post("/push/subscribe", authMiddleware, async (c) => {
+  const sub = await c.req.json<{
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }>();
+  if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
+    return c.json({ error: "Subscrição inválida" }, 400);
+  }
+  await saveSubscription(sub);
+  return c.json({ ok: true });
 });
 
 export { router as adminRoutes };

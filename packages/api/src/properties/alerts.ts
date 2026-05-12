@@ -4,6 +4,7 @@ import { propertyAlerts, propertyListings, leads, activities, settings } from ".
 import { scrapeAll } from "./scraper.js";
 import { sendTelegramMessage } from "../telegram/sender.js";
 import { deduplicateAlertListings } from "./dedup.js";
+import { sendPushToAll } from "../admin/push.js";
 
 /**
  * Lê o `telegramChatId` do perfil do consultor em `settings.agent_profile`.
@@ -158,6 +159,17 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
         description: `🏠 ${pending.length} novo(s) imóvel(is) encontrado(s) em ${alert.zone}`,
       });
     }
+  }
+
+  // Enviar push notification se houve imóveis novos
+  if (notifyTelegram && notifiedCount > 0) {
+    const zone = alert.zone;
+    const tipo = alert.propertyType;
+    sendPushToAll({
+      title: `🏠 ${notifiedCount} imóvel(is) novo(s) em ${zone}`,
+      body: `${tipo} · ${alert.transactionType === "rent" ? "Arrendamento" : "Compra"}${alert.maxPrice ? ` até ${alert.maxPrice.toLocaleString("pt-PT")} €` : ""}`,
+      url: "/imoveis",
+    }).catch((err) => console.error("[Push] Erro ao enviar push:", err));
   }
 
   // Actualiza lastCheckedAt

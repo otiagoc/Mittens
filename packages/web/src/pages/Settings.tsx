@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settingsApi, type AgentProfile } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
-import { Save, User, Check, Camera } from "lucide-react";
+import { Save, User, Check, Camera, Bell, BellOff } from "lucide-react";
+import { usePushNotifications } from "@/lib/usePushNotifications";
 
 export function Settings() {
   const queryClient = useQueryClient();
+  const push = usePushNotifications();
   const { data } = useQuery({
     queryKey: ["agent-profile"],
     queryFn: () => settingsApi.getProfile(),
@@ -151,6 +153,43 @@ export function Settings() {
             {saveMutation.isPending ? "A guardar..." : "Guardar"}
           </button>
         </div>
+      </div>
+
+      {/* Notificações push */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mt-4">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1">Notificações push</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Recebe alertas de imóveis novos diretamente no teu dispositivo, mesmo com o CRM fechado.
+        </p>
+        {push.state === "unsupported" && (
+          <p className="text-xs text-orange-600">
+            O teu browser não suporta notificações push. Usa Chrome, Edge ou Safari iOS 16.4+.
+          </p>
+        )}
+        {push.state === "denied" && (
+          <div className="flex items-center gap-2 text-sm text-red-600">
+            <BellOff size={15} />
+            Permissão bloqueada — vai às definições do browser e permite notificações para este site.
+          </div>
+        )}
+        {push.state === "granted" && (
+          <div className="flex items-center gap-2 text-sm text-green-700">
+            <Bell size={15} />
+            Notificações ativas neste dispositivo.
+          </div>
+        )}
+        {(push.state === "default" || push.state === "loading") && (
+          <button
+            onClick={push.subscribe}
+            disabled={push.state === "loading"}
+            className="flex items-center gap-2 text-white text-sm px-4 py-2 rounded-xl font-medium transition-opacity disabled:opacity-50 hover:opacity-90"
+            style={{ background: "#2c4d46" }}
+          >
+            <Bell size={14} />
+            {push.state === "loading" ? "A ativar..." : "Ativar notificações neste dispositivo"}
+          </button>
+        )}
+        {push.error && <p className="text-xs text-red-500 mt-2">{push.error}</p>}
       </div>
     </div>
   );
