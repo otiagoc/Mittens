@@ -39,7 +39,8 @@ export function usePushNotifications() {
       const appKey = urlBase64ToUint8Array(publicKey);
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: appKey.buffer as ArrayBuffer,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        applicationServerKey: appKey as any,
       });
 
       // 4. Enviar subscrição ao servidor
