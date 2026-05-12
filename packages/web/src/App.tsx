@@ -41,7 +41,14 @@ function ProtectedLayout() {
     <div className="flex h-screen overflow-hidden bg-white">
       <SSEProvider />
       <Sidebar />
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
+      <main
+        className="flex-1 overflow-y-auto"
+        style={{
+          background: "var(--bg)",
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "var(--bottom-nav-pad)",
+        }}
+      >
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/inbox" element={<Inbox />} />

@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe-area responsive padding para a bottom nav ilha */
+:root { --bottom-nav-pad: calc(96px + env(safe-area-inset-bottom)); }
+@media (min-width: 768px) { :root { --bottom-nav-pad: 0px; } }
+
 @layer base {
   :root {
     /* D&D Group Brand Colors */
