@@ -5,6 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useAuthStore } from "@/store/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { ProfileFab } from "@/components/ProfileFab";
 import { SSEProvider } from "@/components/SSEProvider";
 import { Login } from "@/pages/Login";
 import { Dashboard } from "@/pages/Dashboard";
@@ -66,6 +67,7 @@ function ProtectedLayout() {
         </main>
       </div>
       <BottomNav />
+      <ProfileFab />
     </>
   );
 }
