@@ -15,6 +15,7 @@ export interface PropertyListing {
   area: number | null;
   url: string;
   zone: string;
+  publishedAt: string | null;  // data de publicação no portal
 }
 
 export interface SearchParams {
@@ -202,6 +203,8 @@ interface ImovirtualAd {
   rentPrice: { value: number } | null;
   areaInSquareMeters: number | null;
   roomsNumber: string | null;
+  dateCreated?: string | null;
+  dateModified?: string | null;
   location?: {
     address?: {
       city?: { name?: string };
@@ -310,6 +313,7 @@ export async function scrapeImovirtual(params: SearchParams): Promise<PropertyLi
       area: ad.areaInSquareMeters ? Math.round(ad.areaInSquareMeters) : null,
       url: `https://www.imovirtual.com/pt/anuncio/${ad.slug}`,
       zone: cityName,
+      publishedAt: ad.dateCreated ?? ad.dateModified ?? null,
     });
   }
 
@@ -332,6 +336,8 @@ interface CasaYesAd {
   regionName3?: string;
   seoUriDescription?: string;
   listingTypeLabel?: string;
+  publicationDate?: string | null;
+  createdAt?: string | null;
 }
 
 function bedroomsForType(propertyType: string): number[] {
@@ -466,6 +472,7 @@ export async function scrapeCasaYes(params: SearchParams): Promise<PropertyListi
       area: ad.totalArea ?? null,
       url,
       zone: ad.regionName2 || params.zone,
+      publishedAt: ad.publicationDate ?? ad.createdAt ?? null,
     });
   }
 

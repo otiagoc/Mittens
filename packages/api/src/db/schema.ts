@@ -131,6 +131,7 @@ export const propertyListings = sqliteTable("property_listings", {
   detailsScrapedAt: text("details_scraped_at"),
   notifiedAt: text("notified_at"),         // quando foi enviado por Telegram
   foundAt: text("found_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`),
+  publishedAt: text("published_at"),  // data de publicação no portal (quando disponível)
 });
 
 export type PropertyListing = typeof propertyListings.$inferSelect;

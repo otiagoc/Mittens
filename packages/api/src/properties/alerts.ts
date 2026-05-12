@@ -1,4 +1,4 @@
-import { eq, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { propertyAlerts, propertyListings, leads, activities, settings } from "../db/schema.js";
 import { scrapeAll } from "./scraper.js";
@@ -79,6 +79,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
       url: listing.url,
       isNew: true,
       notifiedAt: seedNotifiedAt,
+      publishedAt: listing.publishedAt ?? null,
     }).onConflictDoNothing();
   }
 
@@ -99,7 +100,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
         eq(propertyListings.alertId, alert.id),
         isNull(propertyListings.notifiedAt),
       ))
-      .orderBy(desc(propertyListings.foundAt));
+      .orderBy(desc(sql`COALESCE(${propertyListings.publishedAt}, ${propertyListings.foundAt})`));
 
     const toSend = pending.slice(0, 3);
 
@@ -188,5 +189,8 @@ export async function processPropertyAlerts(): Promise<void> {
 
 /** Devolve todos os imóveis guardados (para a página Imóveis) */
 export async function getAllListings() {
-  return db.select().from(propertyListings).orderBy(desc(propertyListings.foundAt));
+  // Ordena por data de publicação no portal (quando disponível), caso contrário por foundAt
+  return db.select().from(propertyListings).orderBy(
+    desc(sql`COALESCE(${propertyListings.publishedAt}, ${propertyListings.foundAt})`)
+  );
 }
