@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useAuthStore } from "@/store/auth";
 import { Sidebar } from "@/components/Sidebar";
@@ -18,6 +19,18 @@ import { PublicShare } from "@/pages/PublicShare";
 
 function ProtectedLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+
+  // Ouvir evento de logout para navegar sem hard-reload (essencial no iOS PWA)
+  useEffect(() => {
+    const handler = () => {
+      logout(queryClient);
+      navigate("/login", { replace: true });
+    };
+    window.addEventListener("mittens:logout", handler);
+    return () => window.removeEventListener("mittens:logout", handler);
+  }, [logout, navigate]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

@@ -20,7 +20,8 @@ async function request<T>(
 
   if (res.status === 401) {
     localStorage.removeItem("mittens_token");
-    window.location.href = "/login";
+    // Usar evento customizado para que o React Router navegue (evita hard-reload no iOS PWA)
+    window.dispatchEvent(new CustomEvent("mittens:logout"));
     throw new Error("Não autorizado");
   }
 
