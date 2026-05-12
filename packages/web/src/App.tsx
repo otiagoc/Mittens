@@ -9,7 +9,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { Inbox } from "@/pages/Inbox";
 import { Leads } from "@/pages/Leads";
 import { LeadDetail } from "@/pages/LeadDetail";
-import { Pipeline } from "@/pages/Pipeline";
+import { Kanban } from "@/pages/Kanban";
 import { Agents } from "@/pages/Agents";
 import { AgentChat } from "@/pages/AgentChat";
 import { Imoveis } from "@/pages/Imoveis";
@@ -33,8 +33,7 @@ function ProtectedLayout() {
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/leads/:id" element={<LeadDetail />} />
-          <Route path="/pipeline" element={<Pipeline />} />
-          {/* Backwards-compat: antigos bookmarks /kanban → /pipeline */}
+          <Route path="/pipeline" element={<Kanban />} />
           <Route path="/kanban" element={<Navigate to="/pipeline" replace />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/agents/:id/chat" element={<AgentChat />} />
