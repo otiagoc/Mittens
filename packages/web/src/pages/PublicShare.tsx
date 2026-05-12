@@ -199,21 +199,6 @@ export function PublicShare() {
                 <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#4a5e5a" }}>{detail.description}</p>
               </div>
             )}
-
-            {/* Características detalhadas */}
-            {detail && detail.characteristics.length > 0 && (
-              <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #ececec" }}>
-                <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#8bb5a8" }}>Características</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {detail.characteristics.map((c, i) => (
-                    <div key={i} className="px-3 py-2 rounded-xl" style={{ background: "#f7f8f9", border: "1px solid #ececec" }}>
-                      <p className="text-[10px] uppercase font-semibold tracking-wide mb-0.5" style={{ color: "#8bb5a8" }}>{c.label}</p>
-                      <p className="text-sm font-medium" style={{ color: "#2c4d46" }}>{c.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Sidebar direita — preço + agente */}
@@ -283,6 +268,21 @@ export function PublicShare() {
                 )}
               </div>
             </div>
+
+            {/* Características na sidebar */}
+            {detail && detail.characteristics.length > 0 && (
+              <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #ececec" }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#8bb5a8" }}>Características</h3>
+                <div className="space-y-2">
+                  {detail.characteristics.map((c, i) => (
+                    <div key={i} className="flex items-start justify-between gap-2 py-1.5" style={{ borderBottom: i < detail.characteristics.length - 1 ? "1px solid #f0f2f1" : "none" }}>
+                      <span className="text-xs" style={{ color: "#8bb5a8" }}>{c.label}</span>
+                      <span className="text-xs font-semibold text-right" style={{ color: "#2c4d46" }}>{c.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <p className="text-center text-[10px]" style={{ color: "#c0cbc8" }}>
               Partilhado via Mittens

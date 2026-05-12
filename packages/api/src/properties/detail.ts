@@ -71,7 +71,54 @@ const IMV_LABELS: Record<string, string> = {
   heating: "Aquecimento",
   windows_type: "Janelas",
   building_material: "Material",
+  construction_status: "Estado",
+  ownership: "Tipo de propriedade",
+  parking: "Estacionamento",
+  elevator: "Elevador",
 };
+
+// Tradução de valores brutos do Imovirtual para português legível
+const IMV_VALUES: Record<string, string> = {
+  // Andares
+  floor_0: "Rés-do-chão", floor_1: "1º andar", floor_2: "2º andar",
+  floor_3: "3º andar", floor_4: "4º andar", floor_5: "5º andar",
+  floor_6: "6º andar", floor_7: "7º andar", floor_8: "8º andar",
+  floor_9: "9º andar", floor_10: "10º andar",
+  above_10: "Acima do 10º", basement: "Cave", mezzanine: "Mezanino",
+  ground_floor: "Rés-do-chão", top_floor: "Último andar",
+  // Tipo de edifício
+  block: "Bloco", house: "Moradia", tenement: "Prédio", ribbon: "Geminada",
+  detached_house: "Moradia isolada", semi_detached_house: "Moradia geminada",
+  apartment: "Apartamento", studio: "Estúdio",
+  // Estado de construção
+  ready_to_use: "Pronto a habitar", to_renovation: "Para renovar",
+  under_construction: "Em construção", for_completion: "Para acabamento",
+  developer_state: "Obra nova",
+  // Mercado
+  primary: "Mercado primário (novo)", secondary: "Mercado secundário (usado)",
+  // Certificado energético
+  a_plus_plus: "A++", a_plus: "A+", a: "A", b: "B", b_minus: "B-",
+  c: "C", d: "D", e: "E", f: "F", g: "G", exempt: "Isento",
+  // Tipologia — valor numérico → "T{n}"
+  "0": "T0", "1": "T1", "2": "T2", "3": "T3", "4": "T4",
+  "5": "T5", "6": "T6+",
+  // Aquecimento
+  district: "Aquecimento central", gas: "Gás", electric: "Elétrico",
+  wood: "Lenha", heat_pump: "Bomba de calor", floor_heating: "Piso radiante",
+  // Janelas
+  aluminum: "Alumínio", wooden: "Madeira", pvc: "PVC",
+  double_glazing: "Vidro duplo",
+  // Sim/Não genérico
+  yes: "Sim", no: "Não", true: "Sim", false: "Não",
+};
+
+function translateImvValue(key: string, raw: string): string {
+  // Tenta tradução direta
+  const direct = IMV_VALUES[raw.toLowerCase()];
+  if (direct) return direct;
+  // Substitui underscores por espaços e capitaliza
+  return raw.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+}
 
 async function scrapeImovirtualDetail(url: string, externalId: string): Promise<ListingDetail | null> {
   const res = await fetch(url, { headers: HEADERS, redirect: "follow" });
@@ -121,8 +168,10 @@ async function scrapeImovirtualDetail(url: string, externalId: string): Promise<
   const characteristics = charsRaw
     .filter((c) => !["price", "price_per_m", "m"].includes(c.key))
     .map((c) => ({
-      label: IMV_LABELS[c.key] ?? c.key.replace(/_/g, " "),
-      value: c.localizedValue || c.value,
+      label: IMV_LABELS[c.key] ?? c.key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      value: c.localizedValue && c.localizedValue !== c.value
+        ? c.localizedValue
+        : translateImvValue(c.key, c.value),
     }))
     .filter((c) => c.value && c.value.trim() !== "");
 
