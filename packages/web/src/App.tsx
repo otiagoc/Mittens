@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
@@ -23,6 +23,7 @@ function ProtectedLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Ouvir evento de logout para navegar sem hard-reload (essencial no iOS PWA)
   useEffect(() => {
@@ -67,7 +68,7 @@ function ProtectedLayout() {
         </main>
       </div>
       <BottomNav />
-      <ProfileFab />
+      {location.pathname === "/" && <ProfileFab />}
     </>
   );
 }
