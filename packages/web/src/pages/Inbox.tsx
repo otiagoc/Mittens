@@ -16,18 +16,41 @@ export function Inbox() {
   const { data: convs = [], isLoading } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => conversationsApi.list(),
-    refetchInterval: 15_000,
+    refetchInterval: 30_000,
   });
 
   const { data: activeConv } = useQuery({
     queryKey: ["conversation", selected],
     queryFn: () => conversationsApi.get(selected!),
     enabled: !!selected,
-    refetchInterval: selected ? 10_000 : false,
+    refetchInterval: selected ? 20_000 : false,
   });
 
   const sendMutation = useMutation({
     mutationFn: (message: string) => conversationsApi.send(selected!, message),
+    onMutate: async (message: string) => {
+      // Optimistic update — mostra a mensagem imediatamente
+      await queryClient.cancelQueries({ queryKey: ["conversation", selected] });
+      const previous = queryClient.getQueryData(["conversation", selected]);
+      queryClient.setQueryData(["conversation", selected], (old: { messages?: Message[] } | undefined) => {
+        if (!old) return old;
+        const optimistic: Message = {
+          id: `opt-${Date.now()}`,
+          conversationId: selected!,
+          agentId: null,
+          role: "assistant",
+          content: message,
+          createdAt: new Date().toISOString(),
+        };
+        return { ...old, messages: [...(old.messages ?? []), optimistic] };
+      });
+      return { previous };
+    },
+    onError: (_err, _msg, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["conversation", selected], context.previous);
+      }
+    },
     onSuccess: () => {
       setCompose("");
       queryClient.invalidateQueries({ queryKey: ["conversation", selected] });
@@ -38,6 +61,7 @@ export function Inbox() {
   const handleSend = () => {
     const msg = compose.trim();
     if (!msg || !selected || sendMutation.isPending) return;
+    setCompose(""); // limpa input imediatamente
     sendMutation.mutate(msg);
   };
 
