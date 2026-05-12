@@ -5,6 +5,41 @@ import { ChevronLeft, ChevronRight, MapPin, Mail, Phone, Home, Maximize2, X, Bed
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+// Tradução de valores brutos do Imovirtual
+const VALUE_MAP: Record<string, string> = {
+  floor_0: "Rés-do-chão", floor_1: "1º andar", floor_2: "2º andar",
+  floor_3: "3º andar", floor_4: "4º andar", floor_5: "5º andar",
+  floor_6: "6º andar", floor_7: "7º andar", floor_8: "8º andar",
+  floor_9: "9º andar", floor_10: "10º andar",
+  above_10: "Acima do 10º", basement: "Cave", mezzanine: "Mezanino",
+  ground_floor: "Rés-do-chão", top_floor: "Último andar",
+  block: "Bloco", house: "Moradia", tenement: "Prédio",
+  detached_house: "Moradia isolada", semi_detached_house: "Moradia geminada",
+  apartment: "Apartamento", studio: "Estúdio", ribbon: "Geminada",
+  ready_to_use: "Pronto a habitar", to_renovation: "Para renovar",
+  under_construction: "Em construção", for_completion: "Para acabamento",
+  developer_state: "Obra nova",
+  primary: "Novo (mercado primário)", secondary: "Usado (mercado secundário)",
+  a_plus_plus: "A++", a_plus: "A+", a: "A", b: "B", b_minus: "B-",
+  c: "C", d: "D", e: "E", f: "F", g: "G", exempt: "Isento",
+  "0": "T0", "1": "T1", "2": "T2", "3": "T3", "4": "T4", "5": "T5", "6": "T6+",
+  district: "Aquecimento central", gas: "Gás", electric: "Elétrico",
+  wood: "Lenha", heat_pump: "Bomba de calor", floor_heating: "Piso radiante",
+  aluminum: "Alumínio", wooden: "Madeira", pvc: "PVC", double_glazing: "Vidro duplo",
+  yes: "Sim", no: "Não",
+};
+
+const LABEL_MAP: Record<string, string> = {
+  "construction status": "Estado", "construction_status": "Estado",
+  "building_type": "Tipo de edifício", "building type": "Tipo de edifício",
+};
+
+function humanize(label: string, value: string): { label: string; value: string } {
+  const cleanLabel = LABEL_MAP[label.toLowerCase()] ?? label;
+  const cleanValue = VALUE_MAP[value.toLowerCase()] ?? value.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return { label: cleanLabel, value: cleanValue };
+}
+
 export function PublicShare() {
   const { token } = useParams<{ token: string }>();
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -274,12 +309,15 @@ export function PublicShare() {
               <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #ececec" }}>
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#8bb5a8" }}>Características</h3>
                 <div className="space-y-2">
-                  {detail.characteristics.map((c, i) => (
-                    <div key={i} className="flex items-start justify-between gap-2 py-1.5" style={{ borderBottom: i < detail.characteristics.length - 1 ? "1px solid #f0f2f1" : "none" }}>
-                      <span className="text-xs" style={{ color: "#8bb5a8" }}>{c.label}</span>
-                      <span className="text-xs font-semibold text-right" style={{ color: "#2c4d46" }}>{c.value}</span>
-                    </div>
-                  ))}
+                  {detail.characteristics.map((c, i) => {
+                    const h = humanize(c.label, c.value);
+                    return (
+                      <div key={i} className="flex items-start justify-between gap-2 py-1.5" style={{ borderBottom: i < detail.characteristics.length - 1 ? "1px solid #f0f2f1" : "none" }}>
+                        <span className="text-xs" style={{ color: "#8bb5a8" }}>{h.label}</span>
+                        <span className="text-xs font-semibold text-right" style={{ color: "#2c4d46" }}>{h.value}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
