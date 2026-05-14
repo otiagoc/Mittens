@@ -859,6 +859,7 @@ router.post("/leads/:id/property-alerts/test", authMiddleware, async (c) => {
 // ─── IA: Criar lead a partir de texto livre ───────────────────────────────────
 
 router.post("/leads/ai-create", authMiddleware, async (c) => {
+  try {
   const { text } = await c.req.json<{ text: string }>();
   if (!text?.trim()) return c.json({ error: "Texto vazio" }, 400);
 
@@ -989,6 +990,11 @@ Regras:
     alertsCount: alertsCreated.length,
     preview: parsed,
   });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[AI Create] Erro:", msg);
+    return c.json({ error: msg }, 500);
+  }
 });
 
 // ─── Push Notifications ───────────────────────────────────────────────────────
