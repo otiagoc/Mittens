@@ -870,7 +870,7 @@ router.post("/leads/ai-create", authMiddleware, async (c) => {
     max_tokens: 2048,
     messages: [{
       role: "user",
-      content: `Analisa este texto sobre um cliente imobiliário e extrai os dados estruturados em JSON.
+      content: `Analisa este texto sobre um cliente imobiliário e extrai os dados estruturados em JSON. O texto pode estar em português ou inglês.
 
 TEXTO:
 ${text}
@@ -880,10 +880,10 @@ Responde APENAS com um JSON válido neste formato (sem markdown, sem explicaçõ
   "name": "nome completo",
   "phone": "telefone ou null",
   "email": "email ou null",
-  "notes": "resumo das preferências e contexto do cliente",
+  "notes": "resumo das preferências e contexto do cliente (em português)",
   "alerts": [
     {
-      "zone": "zona (ex: Oeiras, Lisboa, Cascais)",
+      "zone": "zona geográfica",
       "propertyType": "T1|T2|T3|T4",
       "transactionType": "rent|buy",
       "maxPrice": número ou null,
@@ -898,11 +898,13 @@ Responde APENAS com um JSON válido neste formato (sem markdown, sem explicaçõ
 }
 
 Regras:
+- SEMPRE cria pelo menos 1 alerta se o cliente mencionar qualquer preferência de imóvel
+- Para a zona: usa o nome da cidade/zona mencionada. Se mencionar escola, landmark ou referência geográfica (ex: "near IPS international school", "perto do Marquês", "zona da baixa"), inferir a cidade mais provável em Portugal. Se não houver zona específica, usa "Portugal"
 - Cria um alerta por combinação zona+tipo (ex: T2 em Oeiras, T3 em Lisboa = 2 alertas)
 - Se o cliente quer T2 e T3, cria alertas separados para cada tipo
-- transactionType: usa "rent" para arrendamento, "buy" para compra
+- transactionType: "rent" para arrendamento/aluguer/rent, "buy" para compra/buy
 - Se não houver preço mencionado, usa null
-- notes: escreve em português, resume preferências, contexto, urgência`
+- notes: em português, resume preferências, contexto, urgência`
     }],
   });
 
@@ -956,7 +958,8 @@ Regras:
   // Criar alertas
   const alertsCreated: string[] = [];
   for (const alert of (parsed.alerts ?? [])) {
-    if (!alert.zone || !alert.propertyType || !alert.transactionType) continue;
+    if (!alert.propertyType || !alert.transactionType) continue;
+    if (!alert.zone) alert.zone = "Portugal";
     const alertId = `alert_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     await db.insert(propertyAlerts).values({
       id: alertId,
