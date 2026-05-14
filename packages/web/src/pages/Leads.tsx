@@ -5,7 +5,7 @@ import { LeadStatusBadge, ALL_STATUSES } from "@/components/LeadStatusBadge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
-import { Plus, Search, Phone, Mail, Send, Trash2 } from "lucide-react";
+import { Plus, Search, Phone, Mail, Send, Trash2, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -196,10 +196,14 @@ function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
 }
 
 function CreateLeadModal({ onClose }: { onClose: () => void }) {
+  const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const [aiText, setAiText] = useState("");
+  const [aiResult, setAiResult] = useState<{ name: string; alertsCount: number } | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", email: "", notes: "" });
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  const mutation = useMutation({
+  const manualMutation = useMutation({
     mutationFn: leadsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
@@ -209,58 +213,152 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
     onError: (error) => window.alert(`Erro ao criar lead: ${error.message}`),
   });
 
+  const aiMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const token = localStorage.getItem("mittens_token");
+      const res = await fetch("/api/leads/ai-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+        throw new Error(err.error ?? "Erro");
+      }
+      return res.json() as Promise<{ leadId: string; name: string; alertsCount: number }>;
+    },
+    onSuccess: (data) => {
+      setAiResult(data);
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+    },
+    onError: (error) => window.alert(`Erro: ${error.message}`),
+  });
+
+  if (aiResult) {
+    return (
+      <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 p-4 md:p-0">
+        <div className="bg-white w-full max-w-md p-6 space-y-4 text-center" style={{ border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto" style={{ background: "#e8efed" }}>
+            <Sparkles size={22} style={{ color: "#2c4d46" }} />
+          </div>
+          <h2 className="font-semibold text-lg" style={{ color: "#2c4d46" }}>Lead criada!</h2>
+          <p className="text-sm text-gray-600">
+            <strong>{aiResult.name}</strong> foi adicionado com{" "}
+            <strong>{aiResult.alertsCount} alerta{aiResult.alertsCount !== 1 ? "s" : ""}</strong> de imóveis.
+            {aiResult.alertsCount > 0 && " O scrape inicial está a correr em background."}
+          </p>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-lg py-2 text-sm transition-colors"
+              style={{ color: "#2c4d46", border: "1px solid #e8efed" }}
+            >
+              Fechar
+            </button>
+            <button
+              onClick={() => { onClose(); navigate(`/leads/${aiMutation.data?.leadId}`); }}
+              className="flex-1 rounded-lg py-2 text-sm text-white"
+              style={{ background: "#2c4d46" }}
+            >
+              Ver lead
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 p-4 md:p-0">
-      <div className="bg-white rounded-sm w-full max-w-md p-6 space-y-4" style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
+      <div className="bg-white w-full max-w-md p-6 space-y-4" style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: "3px" }}>
         <h2 className="font-semibold" style={{ color: "#2c4d46" }}>Novo Lead</h2>
 
-        {(["name", "phone", "email"] as const).map((field) => (
-          <div key={field}>
-            <label className="label block text-xs font-medium mb-1 capitalize">
-              {field === "name" ? "Nome *" : field === "phone" ? "Telefone" : "Email"}
-            </label>
-            <input
-              value={form[field]}
-              onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-              className="input w-full"
-            />
-          </div>
-        ))}
-
-        <div>
-          <label className="label block text-xs font-medium mb-1">Notas</label>
-          <textarea
-            value={form.notes}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            rows={3}
-            className="input w-full resize-none"
-          />
-        </div>
-
-        <div className="flex gap-3 pt-2">
+        {/* Tabs modo */}
+        <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#e8efed" }}>
           <button
-            onClick={onClose}
-            className="flex-1 rounded-lg py-2 text-sm transition-colors"
-            style={{ color: "#2c4d46", border: "1px solid #e8efed" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "#e8efed"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            onClick={() => setMode("ai")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
+            style={{ background: mode === "ai" ? "#2c4d46" : "transparent", color: mode === "ai" ? "white" : "#2c4d46" }}
           >
-            Cancelar
+            <Sparkles size={13} /> Criar com IA
           </button>
           <button
-            onClick={() => mutation.mutate({ ...form, source: "manual" })}
-            disabled={!form.name || mutation.isPending}
-            className="flex-1 rounded-lg py-2 text-sm text-white transition-colors"
-            style={{
-              background: "#2c4d46",
-              opacity: !form.name || mutation.isPending ? 0.6 : 1
-            }}
-            onMouseEnter={(e) => { if (!(!form.name || mutation.isPending)) e.currentTarget.style.background = "#1f3a35"; }}
-            onMouseLeave={(e) => e.currentTarget.style.background = "#2c4d46"}
+            onClick={() => setMode("manual")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
+            style={{ background: mode === "manual" ? "#2c4d46" : "transparent", color: mode === "manual" ? "white" : "#2c4d46" }}
           >
-            {mutation.isPending ? "A criar..." : "Criar Lead"}
+            <User size={13} /> Manual
           </button>
         </div>
+
+        {mode === "ai" ? (
+          <>
+            <div>
+              <label className="label block text-xs font-medium mb-1">Descreve o cliente</label>
+              <textarea
+                value={aiText}
+                onChange={(e) => setAiText(e.target.value)}
+                rows={6}
+                placeholder={"Ex: João Silva, 935 000 000, quer comprar T2 ou T3 em Oeiras ou Cascais, até 350 mil euros, mínimo 80m², não quer apartamentos muito antigos (a partir de 2000). Também interessado em arrendar T2 em Lisboa até 1500€/mês."}
+                className="input w-full resize-none text-sm"
+                style={{ lineHeight: "1.5" }}
+              />
+              <p className="text-xs text-gray-400 mt-1">A IA extrai o perfil, notas e cria os alertas de imóveis automaticamente.</p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={onClose} className="flex-1 rounded-lg py-2 text-sm" style={{ color: "#2c4d46", border: "1px solid #e8efed" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => aiMutation.mutate(aiText)}
+                disabled={!aiText.trim() || aiMutation.isPending}
+                className="flex-1 rounded-lg py-2 text-sm text-white flex items-center justify-center gap-1.5"
+                style={{ background: "#2c4d46", opacity: !aiText.trim() || aiMutation.isPending ? 0.6 : 1 }}
+              >
+                <Sparkles size={13} />
+                {aiMutation.isPending ? "A processar..." : "Criar com IA"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {(["name", "phone", "email"] as const).map((field) => (
+              <div key={field}>
+                <label className="label block text-xs font-medium mb-1">
+                  {field === "name" ? "Nome *" : field === "phone" ? "Telefone" : "Email"}
+                </label>
+                <input
+                  value={form[field]}
+                  onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                  className="input w-full"
+                />
+              </div>
+            ))}
+            <div>
+              <label className="label block text-xs font-medium mb-1">Notas</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                rows={3}
+                className="input w-full resize-none"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={onClose} className="flex-1 rounded-lg py-2 text-sm" style={{ color: "#2c4d46", border: "1px solid #e8efed" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => manualMutation.mutate({ ...form, source: "manual" })}
+                disabled={!form.name || manualMutation.isPending}
+                className="flex-1 rounded-lg py-2 text-sm text-white"
+                style={{ background: "#2c4d46", opacity: !form.name || manualMutation.isPending ? 0.6 : 1 }}
+              >
+                {manualMutation.isPending ? "A criar..." : "Criar Lead"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

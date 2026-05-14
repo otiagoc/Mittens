@@ -11,6 +11,7 @@ import { sendTelegramMessage } from "../telegram/sender.js";
 import { scrapeAll } from "../properties/scraper.js";
 import { runAlert } from "../properties/alerts.js";
 import { saveSubscription, VAPID_PUBLIC } from "./push.js";
+import Anthropic from "@anthropic-ai/sdk";
 import { deduplicateAlertListings, deduplicateAllListings } from "../properties/dedup.js";
 import { scrapeListingDetail } from "../properties/detail.js";
 import type { AgentMessage } from "../agents/types.js";
@@ -853,6 +854,141 @@ router.post("/leads/:id/property-alerts/test", authMiddleware, async (c) => {
     ownerType: body.ownerType,
   });
   return c.json({ count: listings.length, listings: listings.slice(0, 5) });
+});
+
+// ─── IA: Criar lead a partir de texto livre ───────────────────────────────────
+
+router.post("/leads/ai-create", authMiddleware, async (c) => {
+  const { text } = await c.req.json<{ text: string }>();
+  if (!text?.trim()) return c.json({ error: "Texto vazio" }, 400);
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 2048,
+    messages: [{
+      role: "user",
+      content: `Analisa este texto sobre um cliente imobiliário e extrai os dados estruturados em JSON.
+
+TEXTO:
+${text}
+
+Responde APENAS com um JSON válido neste formato (sem markdown, sem explicações):
+{
+  "name": "nome completo",
+  "phone": "telefone ou null",
+  "email": "email ou null",
+  "notes": "resumo das preferências e contexto do cliente",
+  "alerts": [
+    {
+      "zone": "zona (ex: Oeiras, Lisboa, Cascais)",
+      "propertyType": "T1|T2|T3|T4",
+      "transactionType": "rent|buy",
+      "maxPrice": número ou null,
+      "minPrice": número ou null,
+      "minArea": número ou null,
+      "maxArea": número ou null,
+      "buildYearMin": número ou null,
+      "market": "primary|secondary" ou null,
+      "ownerType": "agency|private" ou null
+    }
+  ]
+}
+
+Regras:
+- Cria um alerta por combinação zona+tipo (ex: T2 em Oeiras, T3 em Lisboa = 2 alertas)
+- Se o cliente quer T2 e T3, cria alertas separados para cada tipo
+- transactionType: usa "rent" para arrendamento, "buy" para compra
+- Se não houver preço mencionado, usa null
+- notes: escreve em português, resume preferências, contexto, urgência`
+    }],
+  });
+
+  let parsed: {
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    notes?: string;
+    alerts: {
+      zone: string;
+      propertyType: string;
+      transactionType: "rent" | "buy";
+      maxPrice?: number | null;
+      minPrice?: number | null;
+      minArea?: number | null;
+      maxArea?: number | null;
+      buildYearMin?: number | null;
+      market?: "primary" | "secondary" | null;
+      ownerType?: "agency" | "private" | null;
+    }[];
+  };
+
+  try {
+    const raw = response.content[0].type === "text" ? response.content[0].text : "";
+    parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
+  } catch {
+    return c.json({ error: "Não foi possível interpretar o texto. Tenta ser mais específico." }, 422);
+  }
+
+  if (!parsed.name) return c.json({ error: "Nome não encontrado no texto." }, 422);
+
+  // Criar lead
+  const leadId = `lead_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  await db.insert(leads).values({
+    id: leadId,
+    name: parsed.name,
+    phone: parsed.phone ?? null,
+    email: parsed.email ?? null,
+    notes: parsed.notes ?? null,
+    source: "manual",
+    status: "new",
+  });
+
+  await db.insert(activities).values({
+    id: `act_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    leadId,
+    type: "lead_created",
+    description: `Lead criado por IA a partir de texto`,
+  });
+
+  // Criar alertas
+  const alertsCreated: string[] = [];
+  for (const alert of (parsed.alerts ?? [])) {
+    if (!alert.zone || !alert.propertyType || !alert.transactionType) continue;
+    const alertId = `alert_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    await db.insert(propertyAlerts).values({
+      id: alertId,
+      leadId,
+      zone: alert.zone,
+      propertyType: alert.propertyType,
+      transactionType: alert.transactionType,
+      maxPrice: alert.maxPrice ?? null,
+      minPrice: alert.minPrice ?? null,
+      minArea: alert.minArea ?? null,
+      maxArea: alert.maxArea ?? null,
+      buildYearMin: alert.buildYearMin ?? null,
+      market: alert.market ?? null,
+      ownerType: alert.ownerType ?? null,
+      active: true,
+    });
+    alertsCreated.push(alertId);
+    // Pequeno delay para evitar IDs duplicados
+    await new Promise(r => setTimeout(r, 5));
+  }
+
+  // Seed silencioso: scrape inicial sem notificação (em background)
+  if (alertsCreated.length > 0) {
+    Promise.all(alertsCreated.map(id => runAlert(id, false)))
+      .catch(err => console.error("[AI Create] Erro no seed:", err));
+  }
+
+  return c.json({
+    leadId,
+    name: parsed.name,
+    alertsCount: alertsCreated.length,
+    preview: parsed,
+  });
 });
 
 // ─── Push Notifications ───────────────────────────────────────────────────────
