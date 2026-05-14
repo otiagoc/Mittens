@@ -173,9 +173,18 @@ export function Settings() {
           </div>
         )}
         {push.state === "granted" && (
-          <div className="flex items-center gap-2 text-sm text-green-700">
-            <Bell size={15} />
-            Notificações ativas neste dispositivo.
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-green-700">
+              <Bell size={15} />
+              Subscrição activa neste dispositivo.
+            </div>
+            <button
+              onClick={push.subscribe}
+              className="text-xs underline"
+              style={{ color: "#2c4d46" }}
+            >
+              Não estás a receber? Reactivar subscrição
+            </button>
           </div>
         )}
         {(push.state === "default" || push.state === "loading") && (

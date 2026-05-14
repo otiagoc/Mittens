@@ -1015,6 +1015,13 @@ router.post("/push/subscribe", authMiddleware, async (c) => {
   return c.json({ ok: true });
 });
 
+router.delete("/push/subscriptions", authMiddleware, async (c) => {
+  const { db } = await import("../db/client.js");
+  const { pushSubscriptions } = await import("../db/schema.js");
+  await db.delete(pushSubscriptions);
+  return c.json({ ok: true });
+});
+
 router.get("/push/subscriptions", authMiddleware, async (c) => {
   const { db } = await import("../db/client.js");
   const { pushSubscriptions } = await import("../db/schema.js");
