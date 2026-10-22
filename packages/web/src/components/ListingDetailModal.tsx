@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { sourceMeta } from "@/lib/sources";
 
 export function ListingDetailModal({
   listingId,
@@ -93,12 +94,10 @@ export function ListingDetailModal({
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm text-white shrink-0"
                 style={{
-                  background:
-                    data.source === "casayes" ? "#2c4d46" :
-                    data.source === "idealista" ? "#e74c3c" : "#8bb5a8",
+                  background: sourceMeta(data.source).solid,
                 }}
               >
-                {data.source === "casayes" ? "Casa Yes" : data.source === "idealista" ? "Idealista" : "Imovirtual"}
+                {sourceMeta(data.source).label}
               </span>
             )}
           </div>

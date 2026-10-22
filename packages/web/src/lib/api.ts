@@ -225,7 +225,7 @@ export interface PropertyListing {
 }
 
 export interface ListingDetail {
-  source: "imovirtual" | "casayes" | "idealista";
+  source: "imovirtual" | "casayes" | "idealista" | "remax" | "era" | "century21" | "kw";
   externalId: string;
   url: string;
   title: string;

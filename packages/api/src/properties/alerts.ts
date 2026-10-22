@@ -65,7 +65,14 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
   // 2) Inserir novos. Se for scrape silencioso (criação de alerta), marca como histórico.
   const seedNotifiedAt = notifyTelegram ? null : new Date().toISOString();
 
+  // Portal que nunca correu para este alerta (ex.: RE/MAX/ERA/C21/KW acabados de
+  // adicionar) → a primeira leva entra como histórico, para não disparar dezenas
+  // de alertas de imóveis que já estavam no mercado.
+  const knownSources = new Set(existing.map((l) => l.source));
+  const firstRunAt = new Date().toISOString();
+
   for (const listing of toInsert) {
+    const notifiedAt = seedNotifiedAt ?? (existing.length > 0 && !knownSources.has(listing.source) ? firstRunAt : null);
     const id = `pl_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     await db.insert(propertyListings).values({
       id,
@@ -79,7 +86,7 @@ export async function runAlert(alertId: string, notifyTelegram = true): Promise<
       zone: listing.zone,
       url: listing.url,
       isNew: true,
-      notifiedAt: seedNotifiedAt,
+      notifiedAt,
       publishedAt: listing.publishedAt ?? null,
     }).onConflictDoNothing();
   }

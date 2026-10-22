@@ -29,6 +29,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { ListingDetailModal } from "@/components/ListingDetailModal";
+import { sourceMeta } from "@/lib/sources";
 
 type Filter = "all" | "new" | "favorites" | "hidden";
 
@@ -900,13 +901,9 @@ function ListingCard({
   onDelete: () => void;
   viewMode: "icon" | "list";
 }) {
-  const sourceLabel =
-    listing.source === "idealista" ? "Idealista" :
-    listing.source === "casayes" ? "Casa Yes" : "Imovirtual";
-  const sourceStyle =
-    listing.source === "idealista"
-      ? { background: "#ffe6e6", color: "#c0392b" }
-      : { background: "#e8efed", color: "#2c4d46" };
+  const meta = sourceMeta(listing.source);
+  const sourceLabel = meta.label;
+  const sourceStyle = { background: meta.bg, color: meta.fg };
 
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();

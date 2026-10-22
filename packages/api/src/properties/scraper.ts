@@ -5,11 +5,14 @@
  *   - Imovirtual.com  ✅ via __NEXT_DATA__ (JSON estruturado, paginação até 5 páginas)
  *   - Casa Yes        ✅ via __NEXT_DATA__ (1 página, ideal para agências imobiliárias)
  *   - Idealista.pt    ⚠️  bloqueado por DataDome (HTTP 403). Requer proxy pago.
+ *   - RE/MAX, ERA, Century 21, KW  ✅ via API interna dos sites (ver agencies.ts)
  */
+
+import { scrapeRemax, scrapeEra, scrapeCentury21, scrapeKw } from "./agencies.js";
 
 export interface PropertyListing {
   externalId: string;
-  source: "idealista" | "imovirtual" | "casayes";
+  source: "idealista" | "imovirtual" | "casayes" | "remax" | "era" | "century21" | "kw";
   title: string;
   price: number | null;
   area: number | null;
@@ -490,19 +493,26 @@ export async function scrapeIdealista(_params: SearchParams): Promise<PropertyLi
   return [];
 }
 
-// ─── Função principal — corre ambos ──────────────────────────────────────────
+// ─── Função principal — corre todos os portais ───────────────────────────────
 
 export async function scrapeAll(params: SearchParams): Promise<PropertyListing[]> {
-  const [idealista, imovirtual, casayes] = await Promise.allSettled([
-    scrapeIdealista(params),
-    scrapeImovirtual(params),
-    scrapeCasaYes(params),
-  ]);
+  const scrapers: [string, (p: SearchParams) => Promise<PropertyListing[]>][] = [
+    ["idealista", scrapeIdealista],
+    ["imovirtual", scrapeImovirtual],
+    ["casayes", scrapeCasaYes],
+    ["remax", scrapeRemax],
+    ["era", scrapeEra],
+    ["century21", scrapeCentury21],
+    ["kw", scrapeKw],
+  ];
+
+  const settled = await Promise.allSettled(scrapers.map(([, fn]) => fn(params)));
 
   const results: PropertyListing[] = [];
-  if (idealista.status === "fulfilled") results.push(...idealista.value);
-  if (imovirtual.status === "fulfilled") results.push(...imovirtual.value);
-  if (casayes.status === "fulfilled") results.push(...casayes.value);
+  settled.forEach((r, i) => {
+    if (r.status === "fulfilled") results.push(...r.value);
+    else console.error(`[Scraper] ${scrapers[i][0]} falhou:`, r.reason instanceof Error ? r.reason.message : r.reason);
+  });
 
   return results;
 }
