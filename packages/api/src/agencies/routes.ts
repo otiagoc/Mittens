@@ -4,10 +4,12 @@
  *   GET  /api/agencies                 registo + estado da última varredura + anúncios ativos
  *   GET  /api/agencies/status          estado global (a correr? última execução)
  *   GET  /api/agencies/listings        anúncios recolhidos, com filtros (ver abaixo)
+ *   GET  /api/agencies/new             só novidades por ver (= listings?onlyNew=1&unseen=1)
+ *   POST /api/agencies/new/seen        marca novidades como vistas. body: { ids?: string[] } (sem ids = todas)
  *   POST /api/agencies/sweep           lança uma varredura em segundo plano
  *        body opcional: { agencyIds?: string[], full?: boolean }
  */
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { and, desc, eq, gte, isNull, lte, sql, inArray, type SQL } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { agencyListings, agencyStatus } from "../db/schema.js";
@@ -60,10 +62,11 @@ router.get("/agencies/status", authMiddleware, (c) =>
 /**
  * Filtros: agency (id, pode repetir), municipality, tx (SELL|RENT), typology (T2),
  * estate (FLAT|HOUSE…), minPrice, maxPrice, minArea, since (ISO, anúncios vistos pela
- * 1.ª vez depois disto), includeRemoved=1, limit (máx. 500), offset.
+ * 1.ª vez depois disto), includeRemoved=1, onlyNew=1 (exclui o inventário de base),
+ * unseen=1 (só as que ainda não marquei como vistas), limit (máx. 500), offset.
  */
-router.get("/agencies/listings", authMiddleware, async (c) => {
-  const q = c.req.query();
+async function listListings(c: Context, forced: Record<string, string> = {}) {
+  const q = { ...c.req.query(), ...forced };
   const conds: SQL[] = [];
   const agencies = c.req.queries("agency");
   if (agencies?.length) conds.push(inArray(agencyListings.agencyId, agencies));
@@ -76,6 +79,8 @@ router.get("/agencies/listings", authMiddleware, async (c) => {
   if (q.minArea) conds.push(gte(agencyListings.area, Number(q.minArea)));
   if (q.since) conds.push(gte(agencyListings.firstSeenAt, q.since));
   if (q.includeRemoved !== "1") conds.push(isNull(agencyListings.removedAt));
+  if (q.onlyNew === "1") conds.push(eq(agencyListings.isBaseline, false));
+  if (q.unseen === "1") conds.push(isNull(agencyListings.seenAt));
 
   const limit = Math.min(Number(q.limit) || 100, 500);
   const offset = Number(q.offset) || 0;
@@ -93,6 +98,21 @@ router.get("/agencies/listings", authMiddleware, async (c) => {
       agency: AGENCY_BY_ID.get(r.agencyId)?.name ?? null,
     })),
   });
+}
+
+router.get("/agencies/listings", authMiddleware, (c) => listListings(c));
+router.get("/agencies/new", authMiddleware, (c) => listListings(c, { onlyNew: "1", unseen: "1" }));
+
+router.post("/agencies/new/seen", authMiddleware, async (c) => {
+  const body = await c.req.json<{ ids?: string[] }>().catch(() => ({}) as { ids?: string[] });
+  const conds: SQL[] = [eq(agencyListings.isBaseline, false), isNull(agencyListings.seenAt)];
+  if (body.ids?.length) conds.push(inArray(agencyListings.id, body.ids));
+  const rows = await db
+    .update(agencyListings)
+    .set({ seenAt: new Date().toISOString() })
+    .where(and(...conds))
+    .returning({ id: agencyListings.id });
+  return c.json({ marked: rows.length });
 });
 
 router.post("/agencies/sweep", authMiddleware, async (c) => {

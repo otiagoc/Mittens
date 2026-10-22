@@ -10,6 +10,10 @@
  * vez que uma agência é vista e depois uma vez por semana, no máximo
  * FULL_PER_RUN agências por execução, para espalhar a carga.
  *
+ * Base vs. novidades: tudo o que é recolhido antes de a agência ter a primeira
+ * varredura completa fica com isBaseline = true (inventário que já existia).
+ * Daí em diante, cada anúncio que aparece pela primeira vez é uma novidade.
+ *
  * Tudo sequencial, com pausa de 1–2 s entre pedidos.
  */
 import { and, eq, inArray, isNull, lt } from "drizzle-orm";
@@ -19,7 +23,7 @@ import { AGENCIES, type Agency } from "./registry.js";
 import { fetchAgencyPage, type AgencyAd, type AgencyTx } from "./imovirtual-agency.js";
 
 const INCREMENTAL_MAX_PAGES = 10; // 60 anúncios novos por agência/negócio entre varreduras
-const FULL_MAX_PAGES = 100; // 600 anúncios; acima disto não se marca nada como removido
+const FULL_MAX_PAGES = 1000; // 6000 anúncios (a maior agência tem ~5200)
 const FULL_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
 const FULL_PER_RUN = 15;
 
@@ -40,6 +44,7 @@ export interface AgencySweepResult {
   agencyId: string;
   name: string;
   full: boolean;
+  baseline: boolean;
   sell?: TxResult;
   rent?: TxResult;
   error?: string;
@@ -48,7 +53,7 @@ export interface AgencySweepResult {
 type PriceEntry = { at: string; price: number | null };
 
 /** Grava uma página de anúncios. Devolve quantos já existiam antes desta varredura. */
-async function upsertAds(ads: AgencyAd[], passStart: string, r: TxResult): Promise<number> {
+async function upsertAds(ads: AgencyAd[], passStart: string, r: TxResult, baseline: boolean): Promise<number> {
   if (ads.length === 0) return 0;
   const ids = ads.map((a) => `imv:${a.externalId}`);
   const existing = await db
@@ -92,6 +97,7 @@ async function upsertAds(ads: AgencyAd[], passStart: string, r: TxResult): Promi
           firstSeenAt: now,
           lastSeenAt: now,
           priceHistory: JSON.stringify([{ at: now, price: ad.price }] satisfies PriceEntry[]),
+          isBaseline: baseline,
         })
         .onConflictDoNothing();
       r.inserted++;
@@ -125,7 +131,7 @@ async function upsertAds(ads: AgencyAd[], passStart: string, r: TxResult): Promi
   return known;
 }
 
-async function sweepTx(agency: Agency, tx: AgencyTx, full: boolean, passStart: string): Promise<TxResult> {
+async function sweepTx(agency: Agency, tx: AgencyTx, full: boolean, passStart: string, baseline: boolean): Promise<TxResult> {
   const r: TxResult = { pages: 0, seen: 0, inserted: 0, priceChanged: 0, removed: 0, total: 0, complete: false };
   const maxPages = full ? FULL_MAX_PAGES : INCREMENTAL_MAX_PAGES;
 
@@ -134,7 +140,9 @@ async function sweepTx(agency: Agency, tx: AgencyTx, full: boolean, passStart: s
     const res = await fetchAgencyPage(agency.imovirtualSlug, agency.id, tx, page);
     r.pages++;
     r.total = res.totalItems;
-    const known = await upsertAds(res.ads, passStart, r);
+    // Proteção: se o site ignorar a paginação, não repetir a mesma página.
+    if (res.page !== page) break;
+    const known = await upsertAds(res.ads, passStart, r, baseline);
 
     if (res.ads.length === 0 || page >= res.totalPages) {
       r.complete = true;
@@ -168,12 +176,14 @@ export async function sweepAgency(agency: Agency, opts: { full?: boolean } = {})
   const full =
     opts.full ?? (!status?.lastFullAt || Date.now() - Date.parse(status.lastFullAt) > FULL_EVERY_MS);
   const passStart = nowIso();
-  const out: AgencySweepResult = { agencyId: agency.id, name: agency.name, full };
+  // Enquanto a agência não tiver uma varredura completa, tudo o que entra é inventário de base.
+  const baseline = !status?.lastFullAt;
+  const out: AgencySweepResult = { agencyId: agency.id, name: agency.name, full, baseline };
 
   try {
-    out.sell = await sweepTx(agency, "SELL", full, passStart);
+    out.sell = await sweepTx(agency, "SELL", full, passStart, baseline);
     await pause();
-    out.rent = await sweepTx(agency, "RENT", full, passStart);
+    out.rent = await sweepTx(agency, "RENT", full, passStart, baseline);
   } catch (err) {
     out.error = err instanceof Error ? err.message : String(err);
   }
@@ -204,6 +214,8 @@ export interface SweepSummary {
   finishedAt: string;
   agencies: number;
   inserted: number;
+  /** anúncios novos de verdade (agências que já tinham inventário de base) */
+  fresh: number;
   removed: number;
   priceChanged: number;
   errors: { agencyId: string; name: string; error: string }[];
@@ -220,7 +232,7 @@ export async function sweepAllAgencies(opts: { agencyIds?: string[]; full?: bool
   const startedAt = nowIso();
   running = { startedAt, done: 0, total: list.length };
   const summary: SweepSummary = {
-    startedAt, finishedAt: startedAt, agencies: 0, inserted: 0, removed: 0, priceChanged: 0, errors: [],
+    startedAt, finishedAt: startedAt, agencies: 0, inserted: 0, fresh: 0, removed: 0, priceChanged: 0, errors: [],
   };
 
   try {
@@ -233,7 +245,8 @@ export async function sweepAllAgencies(opts: { agencyIds?: string[]; full?: bool
       const lf = lastFull.get(agency.id);
       const due = !lf || Date.now() - Date.parse(lf) > FULL_EVERY_MS;
       let full = opts.full ?? false;
-      if (opts.full === undefined && due && fullBudget > 0) {
+      if (opts.full === undefined && !lf) full = true; // ainda sem base → recolha completa já
+      else if (opts.full === undefined && due && fullBudget > 0) {
         full = true;
         fullBudget--;
       }
@@ -241,9 +254,15 @@ export async function sweepAllAgencies(opts: { agencyIds?: string[]; full?: bool
       const res = await sweepAgency(agency, { full });
       summary.agencies++;
       running.done++;
+      const ins = (res.sell?.inserted ?? 0) + (res.rent?.inserted ?? 0);
+      console.log(
+        `[Agências] ${running.done}/${running.total} ${agency.name}: ` +
+          (res.error ? `erro — ${res.error}` : `${ins} ${res.baseline ? "de base" : "novos"}${res.full ? " (completa)" : ""}`),
+      );
       for (const t of [res.sell, res.rent]) {
         if (!t) continue;
         summary.inserted += t.inserted;
+        if (!res.baseline) summary.fresh += t.inserted;
         summary.removed += t.removed;
         summary.priceChanged += t.priceChanged;
       }
@@ -264,7 +283,7 @@ export async function sweepAllAgencies(opts: { agencyIds?: string[]; full?: bool
     summary.finishedAt = nowIso();
   }
   console.log(
-    `[Agências] ${summary.agencies} agências · ${summary.inserted} novos · ${summary.priceChanged} preços alterados · ${summary.removed} removidos · ${summary.errors.length} erros`,
+    `[Agências] ${summary.agencies} agências · ${summary.fresh} novidades (+${summary.inserted - summary.fresh} de base) · ${summary.priceChanged} preços alterados · ${summary.removed} removidos · ${summary.errors.length} erros`,
   );
   return summary;
 }

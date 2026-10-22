@@ -196,6 +196,9 @@ export const agencyListings = sqliteTable(
     removedAt: text("removed_at"), // só preenchido após varredura completa
     priceChangedAt: text("price_changed_at"),
     priceHistory: text("price_history").notNull().default("[]"), // JSON [{at, price}]
+    // true = já existia na primeira recolha da agência (inventário de base, não é novidade)
+    isBaseline: integer("is_baseline", { mode: "boolean" }).notNull().default(false),
+    seenAt: text("seen_at"), // quando marquei a novidade como vista (null = por ver)
   },
   (t) => [
     index("agency_listings_agency_idx").on(t.agencyId),
