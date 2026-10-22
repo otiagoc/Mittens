@@ -10,6 +10,7 @@ import { initSender } from "./telegram/sender.js";
 import { adminRoutes } from "./admin/routes.js";
 import { processFollowUps, backfillFollowUpDetection } from "./admin/follow-up.js";
 import { processPropertyAlerts } from "./properties/alerts.js";
+import { agencyRoutes, runAgencySweep } from "./agencies/routes.js";
 
 // ─── Validação de env vars ────────────────────────────────────────────────────
 // Falha imediatamente em produção se faltar algo crítico.
@@ -48,6 +49,7 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
 app.route("/api", adminRoutes);
+app.route("/api", agencyRoutes);
 
 // ─── Bot Telegram ─────────────────────────────────────────────────────────────
 let bot: ReturnType<typeof createBot>;
@@ -133,6 +135,15 @@ function scheduleFollowUpCron() {
   setInterval(() => {
     processPropertyAlerts().catch((err) => console.error("[PropertyAlerts Cron]", err));
   }, 30 * 60 * 1000);
+
+  // Agências independentes (199, via Imovirtual): de 6 em 6 horas.
+  // Desligado por defeito — ativar com AGENCY_SWEEP=on.
+  if (process.env.AGENCY_SWEEP === "on") {
+    const sweep = () => runAgencySweep().catch((err) => console.error("[Agências Cron]", err));
+    setTimeout(sweep, 10 * 60 * 1000);
+    setInterval(sweep, 6 * 60 * 60 * 1000);
+    console.log("[Agências] Varredura automática ativa (de 6 em 6 h)");
+  }
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────

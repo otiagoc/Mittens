@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, text, sqliteTable } from "drizzle-orm/sqlite-core";
+import { index, integer, text, sqliteTable } from "drizzle-orm/sqlite-core";
 
 // ─── Agentes ─────────────────────────────────────────────────────────────────
 
@@ -168,3 +168,52 @@ export const settings = sqliteTable("settings", {
 });
 
 export type Setting = typeof settings.$inferSelect;
+
+// ─── Agências independentes (inventário via Imovirtual) ──────────────────────
+
+export const agencyListings = sqliteTable(
+  "agency_listings",
+  {
+    id: text("id").primaryKey(), // "imv:<id do anúncio>"
+    agencyId: text("agency_id").notNull(), // ID da agência no Imovirtual (ver agencies/registry.ts)
+    externalId: text("external_id").notNull(),
+    source: text("source").notNull().default("imovirtual"),
+    transaction: text("transaction").notNull(), // SELL | RENT
+    estate: text("estate"), // FLAT | HOUSE | TERRAIN | COMMERCIAL_PROPERTY | …
+    typology: text("typology"), // T0..T10
+    title: text("title"),
+    url: text("url").notNull(),
+    price: integer("price"),
+    area: integer("area"),
+    floor: text("floor"),
+    parish: text("parish"),
+    municipality: text("municipality"),
+    district: text("district"),
+    image: text("image"),
+    publishedAt: text("published_at"), // data de criação no portal
+    firstSeenAt: text("first_seen_at").notNull(),
+    lastSeenAt: text("last_seen_at").notNull(),
+    removedAt: text("removed_at"), // só preenchido após varredura completa
+    priceChangedAt: text("price_changed_at"),
+    priceHistory: text("price_history").notNull().default("[]"), // JSON [{at, price}]
+  },
+  (t) => [
+    index("agency_listings_agency_idx").on(t.agencyId),
+    index("agency_listings_muni_idx").on(t.municipality),
+    index("agency_listings_first_seen_idx").on(t.firstSeenAt),
+  ],
+);
+
+export type AgencyListing = typeof agencyListings.$inferSelect;
+
+export const agencyStatus = sqliteTable("agency_status", {
+  agencyId: text("agency_id").primaryKey(),
+  lastSweepAt: text("last_sweep_at"),
+  lastFullAt: text("last_full_at"),
+  lastError: text("last_error"),
+  totalSell: integer("total_sell"),
+  totalRent: integer("total_rent"),
+  newLastSweep: integer("new_last_sweep").notNull().default(0),
+});
+
+export type AgencyStatus = typeof agencyStatus.$inferSelect;
